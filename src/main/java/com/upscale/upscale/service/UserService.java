@@ -9,6 +9,8 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 
 @Service
@@ -65,4 +67,17 @@ public class UserService {
 
         return user;
     }
+
+    public String getName(String emailId){
+        User user = getUser(emailId);
+        if(user != null) return user.getFullName();
+
+        return "";
+    }
+    public String getDate(){
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d");
+        return today.format(formatter);
+    }
+
 }

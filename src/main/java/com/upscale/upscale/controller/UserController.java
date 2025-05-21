@@ -175,4 +175,30 @@ public class UserController {
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
+    @GetMapping("/home")
+    public ResponseEntity<?> getHome(HttpServletRequest request){
+        try{
+
+            String authHeader = request.getHeader("Authorization");
+            String token = "";
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            }
+            //set all data;
+            String emailId = jwtTokenUtil.getEmailFromToken(token);
+
+            HashMap<String, Object> response = new HashMap<>();
+
+            response.put("Email", emailId);
+            response.put("Time",userService.getDate());
+            response.put("FullName", userService.getName(emailId));
+            response.put("Role", userService.getUser(emailId).getRole());
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
+        }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }
