@@ -64,7 +64,7 @@ public class UserController {
                 log.info("User updated: " + emailId + "suceessfully");
             }
 
-            emailService.sendOtpEmail(emailId, otp);
+            //emailService.sendOtpEmail(emailId, otp);
 
 
             response.put("message", "OTP sent successfully");
