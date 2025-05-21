@@ -12,10 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,13 +52,13 @@ public class UserController {
                 newUser.setNewUser(true);
                 response.put("isNewUser", "true");
                 userService.save(newUser);
-                log.info("User created: " + emailId + "suceessfully");
+                log.info("User created: " + emailId + " suceessfully "+otp);
             } else {
                 existingUser.setOtp(otp);
                 existingUser.setNewUser(false);
                 userService.save(existingUser);
                 response.put("isNewUser", "false");
-                log.info("User updated: " + emailId + "suceessfully");
+                log.info("User updated: " + emailId + "suceessfully "+otp);
             }
 
             //emailService.sendOtpEmail(emailId, otp);
@@ -143,6 +140,39 @@ public class UserController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
+    }
+
+    @GetMapping("/user-info")
+    public ResponseEntity<?> getUserInfo(HttpServletRequest request){
+        try {
+            String authHeader = request.getHeader("Authorization");
+            String token = "";
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            }
+            //set all data;
+            String emailId = jwtTokenUtil.getEmailFromToken(token);
+
+            User user = userService.getUser(emailId);
+
+            if(user != null){
+
+                Map<String, Object> response = new HashMap<>();
+
+                response.put("Email", user.getEmailId());
+                response.put("FullName", user.getFullName());
+                response.put("Role", user.getRole());
+                response.put("Workspaces", user.getWorkspaces());
+                response.put("AsanaUsed",user.getAsanaUsed());
+
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
 }
