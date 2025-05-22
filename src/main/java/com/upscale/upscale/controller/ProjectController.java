@@ -15,7 +15,7 @@ import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/project")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "${cross.origin.url}")
 @Slf4j
 public class ProjectController {
 
