@@ -21,20 +21,43 @@ public class ProjectService {
     public Project getProject(String emailId){
         return projectRepo.findByUserEmailid(emailId);
     }
-    public boolean setProject(ProjectCreate projectCreate){
+    public boolean setProject(String emailId,ProjectCreate projectCreate){
 
-        if(getProject(projectCreate.getUserEmailid()) != null) return false;
+        if(emailId.isEmpty()) return false;
 
         Project newProject = new Project();
-        newProject.setUserEmailid(projectCreate.getUserEmailid());
+
+        newProject.setUserEmailid(emailId);
         newProject.setProjectName(projectCreate.getProjectName());
         newProject.setWorkspace(projectCreate.getWorkspace());
+        newProject.setTasks(projectCreate.getTasks());
+        newProject.setLayouts(projectCreate.getLayouts());
         newProject.setRecommended(projectCreate.getRecommended());
         newProject.setPopular(projectCreate.getPopular());
         newProject.setOther(projectCreate.getOther());
+        newProject.setTeammates(projectCreate.getTeammates());
 
         save(newProject);
-        return userService.setProject(newProject, projectCreate.getUserEmailid());
+        return userService.setProject(newProject, emailId);
 
+    }
+
+    public boolean updateProject(String emailId, ProjectCreate projectCreate){
+        Project project = getProject(emailId);
+
+        if(project != null){
+
+            if(project.getTasks().isEmpty()) project.setTasks(projectCreate.getTasks());
+            if(project.getLayouts().isEmpty()) project.setLayouts(projectCreate.getLayouts());
+            if(project.getRecommended().isEmpty()) project.setRecommended(projectCreate.getRecommended());
+            if(project.getPopular().isEmpty()) project.setPopular(projectCreate.getPopular());
+            if(project.getOther().isEmpty()) project.setOther(projectCreate.getOther());
+            if(project.getTeammates().isEmpty()) project.setTeammates(projectCreate.getTeammates());
+
+            save(project);
+            return true;
+        }
+
+        return false;
     }
 }

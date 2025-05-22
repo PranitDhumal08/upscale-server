@@ -8,15 +8,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/project")
+@CrossOrigin(origins = "http://localhost:3000")
 @Slf4j
 public class ProjectController {
 
@@ -34,13 +32,18 @@ public class ProjectController {
             if(projectCreate != null){
 
                 if(projectService.getProject(email) != null){
+                    if(projectService.updateProject(email,projectCreate)){
+                        response.put("message",">>> Project updated successfully <<<");
+                        log.info("Project Updated: " + email + " successfully");
+                        response.put("Data",projectCreate);
+                    }
                     response.put("message", "Project already exists");
 
                     return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
                 }
                 else{
 
-                    if(projectService.setProject(projectCreate)){
+                    if(projectService.setProject(tokenService.getEmailFromToken(request),projectCreate)){
                         response.put("message",">>> Project created successfully <<<");
                         log.info("Project Created: " + email + " successfully");
                         response.put("Data",projectCreate);
