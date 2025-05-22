@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 @Service
@@ -90,4 +92,11 @@ public class UserService {
         return false;
     }
 
+    public List<String> getTeamMates(String emailId) {
+        User user = getUser(emailId);;
+        if(user != null){
+            return user.getTeammates();
+        }
+        return new ArrayList<>();
+    }
 }

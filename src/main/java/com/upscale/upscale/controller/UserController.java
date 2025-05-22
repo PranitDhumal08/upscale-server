@@ -1,12 +1,11 @@
 package com.upscale.upscale.controller;
 
+import com.upscale.upscale.dto.GoalData;
 import com.upscale.upscale.dto.UserCreate;
 import com.upscale.upscale.dto.UserLogin;
 import com.upscale.upscale.dto.UserLoginData;
 import com.upscale.upscale.entity.User;
-import com.upscale.upscale.service.EmailService;
-import com.upscale.upscale.service.TokenService;
-import com.upscale.upscale.service.UserService;
+import com.upscale.upscale.service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +30,12 @@ public class UserController {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private GoalService goalService;
+
+    @Autowired
+    private ProjectService projectService;
 
     @GetMapping("/check-user/{emailId}")
     public ResponseEntity<?> checkUserExists(@PathVariable String emailId) {
@@ -204,6 +209,12 @@ public class UserController {
             response.put("Time",userService.getDate());
             response.put("FullName", userService.getName(emailId));
             response.put("Role", userService.getUser(emailId).getRole());
+
+            response.put("Goal", goalService.getGoal(emailId));
+
+            response.put("Project",projectService.getProject(emailId));
+
+            response.put("Team Mates",userService.getTeamMates(emailId));
 
             return new ResponseEntity<>(response, HttpStatus.OK);
 

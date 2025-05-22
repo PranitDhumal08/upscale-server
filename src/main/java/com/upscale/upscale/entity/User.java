@@ -22,5 +22,6 @@ public class User {
     private List<String> workspaces;
     private List<String> asanaUsed;
     private List<Project> projects = new ArrayList<>();
+    private List<String> teammates = new ArrayList<>();
 
 }
