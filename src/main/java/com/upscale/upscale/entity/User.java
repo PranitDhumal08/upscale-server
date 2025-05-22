@@ -20,5 +20,6 @@ public class User {
     private String role;
     private List<String> workspaces;
     private List<String> asanaUsed;
+    private List<Project> projects;
 
 }

@@ -23,7 +23,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())  // Disable CSRF for API endpoints
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
-                .requestMatchers("/api/users/send-otp", "/api/users/verify-otp").permitAll()
+                .requestMatchers("/api/users/send-otp", "/api/users/verify-otp","/api/users/check-user/{emailId}").permitAll()
                 // Secure all other endpoints
                 .anyRequest().authenticated()
             )

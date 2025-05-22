@@ -2,6 +2,7 @@ package com.upscale.upscale.service;
 
 import com.upscale.upscale.dto.UserCreate;
 import com.upscale.upscale.dto.UserLogin;
+import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.entity.User;
 import com.upscale.upscale.repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,6 +79,15 @@ public class UserService {
         LocalDate today = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d");
         return today.format(formatter);
+    }
+    public boolean setProject(Project project,String emailId){
+        User user = getUser(emailId);
+        if(user != null){
+            user.getProjects().add(project);
+            save(user);
+            return true;
+        }
+        return false;
     }
 
 }

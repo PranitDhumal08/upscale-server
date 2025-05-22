@@ -4,8 +4,8 @@ import com.upscale.upscale.dto.UserCreate;
 import com.upscale.upscale.dto.UserLogin;
 import com.upscale.upscale.dto.UserLoginData;
 import com.upscale.upscale.entity.User;
-import com.upscale.upscale.security.JwtTokenUtil;
 import com.upscale.upscale.service.EmailService;
+import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,35 @@ public class UserController {
     private EmailService emailService;
 
     @Autowired
-    private JwtTokenUtil jwtTokenUtil;
+    private TokenService tokenService;
+
+    @GetMapping("/check-user/{emailId}")
+    public ResponseEntity<?> checkUserExists(@PathVariable String emailId) {
+        try{
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(userService.checkUserExists(emailId)){
+                response.put("message", "User exists, Otp sent to " + emailId + " successfully. Please check your email for OTP.");
+                response.put("email", emailId);
+                response.put("isNewUser", "false");
+                UserLogin userLogin = new UserLogin();
+                userLogin.setEmailId(emailId);
+                sendOtp(userLogin);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+
+                response.put("message", "User does not exist");
+                response.put("email", emailId);
+                response.put("isNewUser", "true");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+
+        }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody UserLogin user) {
@@ -94,7 +122,7 @@ public class UserController {
                     }
 
                     // Generate JWT token
-                    String token = jwtTokenUtil.generateToken(emailId);
+                    String token = tokenService.generateToken(emailId);
                     response.put("token", token);
 
                     return new ResponseEntity<>(response, HttpStatus.OK);
@@ -112,17 +140,8 @@ public class UserController {
     public ResponseEntity<?> createUser(HttpServletRequest request, @RequestBody UserCreate userCreate){
         try {
 
-            if(userCreate == null) return new ResponseEntity<>("Enter data properly", HttpStatus.BAD_REQUEST);
-
-            String authHeader = request.getHeader("Authorization");
-            String token = "";
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                // Extract the token (remove "Bearer " prefix)
-                token = authHeader.substring(7);
-            }
-
             //set all data;
-            String email = jwtTokenUtil.getEmailFromToken(token);
+            String email = tokenService.getEmailFromToken(request);
 
             User user = userService.getUserDetails(email, userCreate);
 
@@ -133,7 +152,7 @@ public class UserController {
             response.put("message", "User created successfully");
             response.put("Name", userCreate.getFullName());
             response.put("email", email);
-            response.put("token", jwtTokenUtil.generateToken(email));
+            response.put("token", tokenService.generateToken(email));
             return new ResponseEntity<>(response, HttpStatus.OK);
 
         }catch (Exception e){
@@ -145,13 +164,9 @@ public class UserController {
     @GetMapping("/user-info")
     public ResponseEntity<?> getUserInfo(HttpServletRequest request){
         try {
-            String authHeader = request.getHeader("Authorization");
-            String token = "";
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-            }
+
             //set all data;
-            String emailId = jwtTokenUtil.getEmailFromToken(token);
+            String emailId = tokenService.getEmailFromToken(request);
 
             User user = userService.getUser(emailId);
 
@@ -179,13 +194,8 @@ public class UserController {
     public ResponseEntity<?> getHome(HttpServletRequest request){
         try{
 
-            String authHeader = request.getHeader("Authorization");
-            String token = "";
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-            }
-            //set all data;
-            String emailId = jwtTokenUtil.getEmailFromToken(token);
+
+            String emailId = tokenService.getEmailFromToken(request);
 
             HashMap<String, Object> response = new HashMap<>();
 
