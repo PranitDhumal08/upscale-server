@@ -1,6 +1,7 @@
 package com.upscale.upscale.service;
 
 import com.upscale.upscale.dto.ProjectCreate;
+import com.upscale.upscale.dto.ProjectData;
 import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.repository.ProjectRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,5 +60,19 @@ public class ProjectService {
         }
 
         return false;
+    }
+
+    public ProjectData getInfo(String emailId){
+        Project project = getProject(emailId);
+        ProjectData projectData = new ProjectData();
+        projectData.setProjectName(project.getProjectName());
+        projectData.setWorkspace(project.getWorkspace());
+        projectData.setTasks(project.getTasks());
+        projectData.setLayouts(project.getLayouts());
+        projectData.setRecommended(project.getRecommended());
+        projectData.setPopular(project.getPopular());
+        projectData.setOther(project.getOther());
+        projectData.setTeammates(project.getTeammates());
+        return projectData;
     }
 }

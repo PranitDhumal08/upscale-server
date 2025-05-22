@@ -1,6 +1,7 @@
 package com.upscale.upscale.controller;
 
 import com.upscale.upscale.dto.ProjectCreate;
+import com.upscale.upscale.dto.ProjectData;
 import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +65,29 @@ public class ProjectController {
 
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
+
+        }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<?> getDashboard(HttpServletRequest request) {
+        try{
+            String email = tokenService.getEmailFromToken(request);
+
+            HashMap<String, Object> response = new HashMap<>();
+            if(projectService.getProject(email) != null){
+
+                ProjectData projectData = projectService.getInfo(email);
+
+                response.put("Data",projectData);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+
+            }
+            response.put("message", "Project not found");
+            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+
 
         }catch (Exception e){
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
