@@ -99,4 +99,12 @@ public class UserService {
         }
         return new ArrayList<>();
     }
+
+    public List<Project> getProjects(String emailId) {
+        User user = getUser(emailId);
+        if(user != null){
+            return user.getProjects();
+        }
+        return new ArrayList<>();
+    }
 }

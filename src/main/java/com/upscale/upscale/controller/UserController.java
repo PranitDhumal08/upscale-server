@@ -212,7 +212,7 @@ public class UserController {
 
             response.put("Goal", goalService.getGoal(emailId));
 
-            response.put("Project",projectService.getProject(emailId));
+            response.put("Project",userService.getProjects(emailId));
 
             response.put("Team Mates",userService.getTeamMates(emailId));
 
