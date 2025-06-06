@@ -19,8 +19,8 @@ public class ProjectService {
     public void save(Project project){
         projectRepo.save(project);
     }
-    public Project getProject(String emailId){
-        return projectRepo.findByUserEmailid(emailId);
+    public Project getProject(String projectId){
+        return projectRepo.findById(projectId).orElse(null);
     }
     public boolean setProject(String emailId,ProjectCreate projectCreate){
 
@@ -74,5 +74,9 @@ public class ProjectService {
         projectData.setOther(project.getOther());
         projectData.setTeammates(project.getTeammates());
         return projectData;
+    }
+
+    public String getProjectName(String projectId){
+        return projectRepo.findById(projectId).get().getProjectName();
     }
 }
