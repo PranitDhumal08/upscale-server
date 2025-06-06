@@ -44,12 +44,20 @@ public class UserController {
                 response.put("status", "success");
                 response.put("user", loginUser.getEmail());
 
+                response.put("isNewUser", false);
+
                 String token = tokenService.generateToken(loginUser.getEmail());
                 response.put("token", token);
 
                 return new ResponseEntity<>(response, HttpStatus.OK);
 
-            }else{
+            }else if(!userService.checkUserExists(loginUser.getEmail())){
+                response.put("status", "error");
+                response.put("message", "Email does not exist");
+                response.put("isNewUser", true);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
                 response.put("status", "fail");
                 response.put("message", "Invalid email or password");
                 return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
@@ -62,33 +70,33 @@ public class UserController {
 
     }
 
-    @GetMapping("/check-user/{emailId}")
-    public ResponseEntity<?> checkUserExists(@PathVariable String emailId) {
-        try{
-            HashMap<String, Object> response = new HashMap<>();
-
-            if(userService.checkUserExists(emailId)){
-                response.put("message", "User exists, Otp sent to " + emailId + " successfully. Please check your email for OTP.");
-                response.put("email", emailId);
-                response.put("isNewUser", "false");
-                UserLogin userLogin = new UserLogin();
-                userLogin.setEmailId(emailId);
-                sendOtp(userLogin);
-                return new ResponseEntity<>(response, HttpStatus.OK);
-            }
-            else{
-
-                response.put("message", "User does not exist");
-                response.put("email", emailId);
-                response.put("isNewUser", "true");
-                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-            }
-
-
-        }catch (Exception e){
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+//    @GetMapping("/check-user/{emailId}")
+//    public ResponseEntity<?> checkUserExists(@PathVariable String emailId) {
+//        try{
+//            HashMap<String, Object> response = new HashMap<>();
+//
+//            if(userService.checkUserExists(emailId)){
+//                response.put("message", "User exists, Otp sent to " + emailId + " successfully. Please check your email for OTP.");
+//                response.put("email", emailId);
+//                response.put("isNewUser", "false");
+//                UserLogin userLogin = new UserLogin();
+//                userLogin.setEmailId(emailId);
+//                sendOtp(userLogin);
+//                return new ResponseEntity<>(response, HttpStatus.OK);
+//            }
+//            else{
+//
+//                response.put("message", "User does not exist");
+//                response.put("email", emailId);
+//                response.put("isNewUser", "true");
+//                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+//            }
+//
+//
+//        }catch (Exception e){
+//            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+//        }
+//    }
 
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody UserLogin user) {
