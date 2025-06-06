@@ -1,9 +1,6 @@
 package com.upscale.upscale.controller;
 
-import com.upscale.upscale.dto.GoalData;
-import com.upscale.upscale.dto.UserCreate;
-import com.upscale.upscale.dto.UserLogin;
-import com.upscale.upscale.dto.UserLoginData;
+import com.upscale.upscale.dto.*;
 import com.upscale.upscale.entity.User;
 import com.upscale.upscale.service.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +33,34 @@ public class UserController {
 
     @Autowired
     private ProjectService projectService;
+
+    @PostMapping("/login-user")
+    public ResponseEntity<?> loginUser(@RequestBody LoginUser loginUser) {
+
+        try{
+            HashMap<String,Object> response = new HashMap<>();
+
+            if(userService.login(loginUser)){
+                response.put("status", "success");
+                response.put("user", loginUser.getEmail());
+
+                String token = tokenService.generateToken(loginUser.getEmail());
+                response.put("token", token);
+
+                return new ResponseEntity<>(response, HttpStatus.OK);
+
+            }else{
+                response.put("status", "fail");
+                response.put("message", "Invalid email or password");
+                return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+            }
+
+
+        }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(),HttpStatus.BAD_REQUEST);
+        }
+
+    }
 
     @GetMapping("/check-user/{emailId}")
     public ResponseEntity<?> checkUserExists(@PathVariable String emailId) {

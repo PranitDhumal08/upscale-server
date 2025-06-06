@@ -1,5 +1,6 @@
 package com.upscale.upscale.service;
 
+import com.upscale.upscale.dto.LoginUser;
 import com.upscale.upscale.dto.UserCreate;
 import com.upscale.upscale.dto.UserLogin;
 import com.upscale.upscale.entity.Project;
@@ -33,7 +34,13 @@ public class UserService {
         return 100000 + random.nextInt(900000); // Generates a 6-digit OTP
     }
 
-
+    public boolean login(LoginUser loginUser) {
+        User user = userRepo.findByEmailId(loginUser.getEmail());
+        if(user != null) {
+            if(passwordEncoder.matches(loginUser.getPassword(),user.getPassword())) return true;
+        }
+        return false;
+    }
 
     public void save(User user) {
         userRepo.save(user);
