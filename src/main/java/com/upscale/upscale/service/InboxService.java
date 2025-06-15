@@ -3,10 +3,14 @@ package com.upscale.upscale.service;
 import com.upscale.upscale.dto.InboxData;
 import com.upscale.upscale.entity.Inbox;
 import com.upscale.upscale.entity.People;
+import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.repository.InboxRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -36,19 +40,36 @@ public class InboxService {
         saveInbox(inbox);
     }
 
-    public InboxData getInbox(String emailId){
-        Inbox inbox = inboxRepo.findByReceiverId(emailId);
+    public List<InboxData> getInbox(String emailId){
+        List<Inbox> inboxes = inboxRepo.findByReceiverId(emailId);
 
-        if(inbox != null){
-            InboxData inboxData = new InboxData();
+        List<InboxData> inboxDataList = new ArrayList<>();
 
-            inboxData.setSenderId(inbox.getSenderId());
-            inboxData.setReceiverId(inboxData.getReceiverId());
-            inboxData.setContent(inbox.getContent());
+        if(inboxes != null && !inboxes.isEmpty()){
+            for (Inbox inbox : inboxes) {
+                InboxData inboxData = new InboxData();
 
-            return inboxData;
+                inboxData.setSenderId(inbox.getSenderId());
+                inboxData.setReceiverId(inbox.getReceiverId());
+                inboxData.setContent(inbox.getContent());
+
+                inboxDataList.add(inboxData);
+            }
+            return inboxDataList;
         }
-        return null;
+        return new ArrayList<>();
+    }
 
+    public void sendTaskDetails(Task task,String senderEmailId,String receiverEmailId){
+        Inbox inbox = new Inbox();
+
+        inbox.setSenderId(senderEmailId);
+        inbox.setReceiverId(receiverEmailId);
+
+        String context = "You have given a task "+task.getTaskName();
+
+        inbox.setContent(context);
+
+        saveInbox(inbox);
     }
 }

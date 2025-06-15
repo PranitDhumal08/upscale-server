@@ -11,7 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/inbox")
@@ -31,18 +33,19 @@ public class InboxController {
 
             String emailId = tokenService.getEmailFromToken(request);
 
-            InboxData inboxData = inboxService.getInbox(emailId);
+            List<InboxData> inboxDataList = inboxService.getInbox(emailId);
 
             HashMap<String,Object> response = new HashMap<>();
-            if(inboxData != null){
+            if(!inboxDataList.isEmpty()){
 
                 response.put("message",">>> Inbox fetched successfully <<<");
-                response.put("Data",inboxData);
+                response.put("Data",inboxDataList);
                 return new ResponseEntity<>(response, HttpStatus.OK);
             }
             else{
                 response.put("message",">>> Inbox not found <<<");
-                return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
+                response.put("Data", new ArrayList<>());
+                return new ResponseEntity<>(response, HttpStatus.OK);
             }
 
 
