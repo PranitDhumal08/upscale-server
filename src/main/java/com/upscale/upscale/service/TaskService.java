@@ -93,7 +93,10 @@ public class TaskService {
         for (int i = 0; i < allTasks.size(); i++) {
             Task task = allTasks.get(i);
             taskData[i] = new TaskData();
+
+            taskData[i].setId(task.getId());
             taskData[i].setTaskName(task.getTaskName());
+            taskData[i].setCompleted(task.isCompleted());
             taskData[i].setDate(task.getDate());
             taskData[i].setDescription(task.getDescription());
             taskData[i].setAssignId(task.getAssignId());
@@ -102,5 +105,9 @@ public class TaskService {
 
         return taskData;
     }
+
+   public Task getTask(String id) {
+        return taskRepo.findById(id).orElse(null);
+   }
 
 }

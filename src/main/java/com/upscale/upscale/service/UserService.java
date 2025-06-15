@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
@@ -107,11 +108,19 @@ public class UserService {
         return new ArrayList<>();
     }
 
-    public List<Project> getProjects(String emailId) {
+    public HashMap<String,String> getProjects(String emailId) {
+
+        HashMap<String,String> map = new HashMap<>();
+
         User user = getUser(emailId);
         if(user != null){
-            return user.getProjects();
+            List<Project> projects = user.getProjects();
+            for(Project project : projects){
+                map.put(project.getId(),project.getProjectName());
+            }
+
+            return map;
         }
-        return new ArrayList<>();
+        return map;
     }
 }
