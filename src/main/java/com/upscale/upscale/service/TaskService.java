@@ -110,4 +110,13 @@ public class TaskService {
         return taskRepo.findById(id).orElse(null);
    }
 
+   public Task createTask(String taskName) {
+        Task task = new Task();
+        task.setTaskName(taskName);
+        task.setCompleted(false);
+
+        save(task);
+        return task;
+   }
+
 }

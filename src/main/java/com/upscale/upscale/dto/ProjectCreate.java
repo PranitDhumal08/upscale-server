@@ -1,5 +1,6 @@
 package com.upscale.upscale.dto;
 
+import com.upscale.upscale.entity.Task;
 import lombok.Data;
 
 import java.util.HashMap;
