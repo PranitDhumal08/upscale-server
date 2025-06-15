@@ -39,6 +39,7 @@ public class TaskService {
         task.setDate(taskData.getDate());
         task.setCompleted(false);
         task.setCreatedId(createdId);
+        task.setProjectIds(taskData.getProjectIds());
         task.setDescription(taskData.getDescription());
 
 
@@ -56,7 +57,7 @@ public class TaskService {
 
         task.setAssignId(assignId);
 
-        Task savedTask = taskRepo.save(task);
+        Task savedTask = save(task);
         log.info("Saved Task to DB: {}", savedTask);
 
         return savedTask != null;
@@ -96,6 +97,7 @@ public class TaskService {
             taskData[i].setDate(task.getDate());
             taskData[i].setDescription(task.getDescription());
             taskData[i].setAssignId(task.getAssignId());
+            taskData[i].setProjectIds(task.getProjectIds());
         }
 
         return taskData;

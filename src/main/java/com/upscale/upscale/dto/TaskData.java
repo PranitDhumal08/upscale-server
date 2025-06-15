@@ -12,4 +12,5 @@ public class TaskData {
     Date date;
     private String description;
     private List<String> assignId = new ArrayList<>();
+    private List<String> projectIds = new ArrayList<>();
 }

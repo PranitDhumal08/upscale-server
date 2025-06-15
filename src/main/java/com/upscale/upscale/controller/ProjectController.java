@@ -2,6 +2,7 @@ package com.upscale.upscale.controller;
 
 import com.upscale.upscale.dto.ProjectCreate;
 import com.upscale.upscale.dto.ProjectData;
+import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,15 +72,15 @@ public class ProjectController {
         }
     }
 
-    @GetMapping("/dashboard")
-    public ResponseEntity<?> getDashboard(HttpServletRequest request) {
+    @GetMapping("/dashboard/{project-id}")
+    public ResponseEntity<?> getDashboard(HttpServletRequest request, @PathVariable("project-id") String projectId) {
         try{
             String email = tokenService.getEmailFromToken(request);
 
             HashMap<String, Object> response = new HashMap<>();
-            if(projectService.getProject(email) != null){
+            if(projectService.getProject(projectId) != null){
 
-                ProjectData projectData = projectService.getInfo(email);
+                Project projectData = projectService.getProject(projectId);
 
                 response.put("Data",projectData);
                 return new ResponseEntity<>(response, HttpStatus.OK);

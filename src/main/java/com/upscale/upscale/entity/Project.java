@@ -13,9 +13,10 @@ import java.util.List;
 public class Project {
 
     @Id
-    private String Id; //project id
+    private String id; //project id
     private String userEmailid; //main person mail id
     private String projectName; //project name
+    private String projectDescription; //description
     private String workspace; //workspace name
     private HashMap<String,List<String>> tasks = new HashMap<>(); //task in grops: task
     private String layouts; //layout gantt,board,timeline
