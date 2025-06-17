@@ -76,17 +76,37 @@ public class TaskService {
         return tasks;
     }
 
-    public TaskData[] getAll(String email) {
+    public TaskData[] getTaskDataByAssignId(String email) {
         User user = userService.getUser(email);
         log.info("User ID: " + user.getId());
 
         List<Task> assignedTasks = getTasksByAssignId(user.getId());
 
+        TaskData[] taskData = new TaskData[assignedTasks.size()];
+
+        for(int i = 0; i < assignedTasks.size(); i++){
+            taskData[i] = new TaskData();
+            taskData[i].setTaskName(assignedTasks.get(i).getTaskName());
+            taskData[i].setDate(assignedTasks.get(i).getDate());
+            taskData[i].setCompleted(assignedTasks.get(i).isCompleted());
+            taskData[i].setAssignId(assignedTasks.get(i).getAssignId());
+            taskData[i].setDescription(assignedTasks.get(i).getDescription());
+
+        }
+        return taskData;
+    }
+
+    public TaskData[] getAll(String email) {
+        User user = userService.getUser(email);
+        log.info("User ID: " + user.getId());
+
+        //List<Task> assignedTasks = getTasksByAssignId(user.getId());
+
         List<Task> createdTasks = taskRepo.findByCreatedId(user.getId());
 
         List<Task> allTasks = new ArrayList<>();
         allTasks.addAll(createdTasks);
-        allTasks.addAll(assignedTasks);
+        //allTasks.addAll(assignedTasks);
 
         TaskData[] taskData = new TaskData[allTasks.size()];
 

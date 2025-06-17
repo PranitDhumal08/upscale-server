@@ -88,6 +88,27 @@ public class TaskController {
         }
     }
 
+    @GetMapping("/get-assign-task")
+    public ResponseEntity<?> getAssignTask(HttpServletRequest request) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+            TaskData[] taskData = taskService.getAll(email);
+            if(taskData != null && taskData.length > 0) {
+                response.put("tasks", taskData);
+                response.put("status", "success");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("message", "No task found");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @PostMapping("/complete/{task-id}")
     public ResponseEntity<?> complete(HttpServletRequest request, @PathVariable("task-id") String taskId) {
         try {
