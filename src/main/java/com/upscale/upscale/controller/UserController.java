@@ -232,22 +232,24 @@ public class UserController {
     @GetMapping("/home")
     public ResponseEntity<?> getHome(HttpServletRequest request){
         try{
-
-
             String emailId = tokenService.getEmailFromToken(request);
 
             HashMap<String, Object> response = new HashMap<>();
 
             response.put("Email", emailId);
-            response.put("Time",userService.getDate());
+            response.put("Time", userService.getDate());
             response.put("FullName", userService.getName(emailId));
             response.put("Role", userService.getUser(emailId).getRole());
 
             response.put("Goal", goalService.getGoal(emailId));
 
-            response.put("Project",userService.getProjects(emailId));
+            // Projects created by the user
+            response.put("My Projects", userService.getProjects(emailId));
+            
+            // Projects where user is a teammate
+            response.put("Teammate Projects", projectService.getProjectsAsTeammate(emailId));
 
-            response.put("Team Mates",userService.getTeamMates(emailId));
+            response.put("Team Mates", userService.getTeamMates(emailId));
 
             return new ResponseEntity<>(response, HttpStatus.OK);
 

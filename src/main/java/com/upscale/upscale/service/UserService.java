@@ -26,6 +26,11 @@ public class UserService {
 
     private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
+    public UserService() {
+        // Set default password encoder to bcrypt
+        System.setProperty("spring.security.password.encoder", "bcrypt");
+    }
+
     public boolean checkUserExists(String emailId) {
         return userRepo.findByEmailId(emailId) != null;
     }

@@ -5,6 +5,7 @@ import com.upscale.upscale.dto.ProjectData;
 import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TokenService;
+import com.upscale.upscale.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/project")
@@ -24,6 +27,8 @@ public class ProjectController {
     private ProjectService projectService;
     @Autowired
     private TokenService tokenService;
+    @Autowired
+    private UserService userService;
 
     @PostMapping("/create-project")
     public ResponseEntity<?> createProject(HttpServletRequest request, @RequestBody ProjectCreate projectCreate) {
@@ -79,17 +84,23 @@ public class ProjectController {
 
             HashMap<String, Object> response = new HashMap<>();
             if(projectService.getProject(projectId) != null){
-
                 Project projectData = projectService.getProject(projectId);
+                
+                // Convert teammate email IDs to names
+                List<String> teammateNames = new ArrayList<>();
+                for(String teammateEmail : projectData.getTeammates()) {
+                    String teammateName = userService.getName(teammateEmail);
+                    if(teammateName != null && !teammateName.isEmpty()) {
+                        teammateNames.add(teammateName);
+                    }
+                }
+                projectData.setTeammates(teammateNames);
 
-                response.put("Data",projectData);
+                response.put("Data", projectData);
                 return new ResponseEntity<>(response, HttpStatus.OK);
-
             }
             response.put("message", "Project not found");
             return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-
-
         }catch (Exception e){
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }

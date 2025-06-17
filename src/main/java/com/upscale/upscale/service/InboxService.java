@@ -4,6 +4,7 @@ import com.upscale.upscale.dto.InboxData;
 import com.upscale.upscale.entity.Inbox;
 import com.upscale.upscale.entity.People;
 import com.upscale.upscale.entity.Task;
+import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.repository.InboxRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,19 @@ public class InboxService {
 
         inbox.setContent(context);
 
+        saveInbox(inbox);
+    }
+
+    public void sendProjectInvite(String senderEmailId, String receiverEmailId, Project project) {
+        Inbox inbox = new Inbox();
+        inbox.setSenderId(senderEmailId);
+        inbox.setReceiverId(receiverEmailId);
+        
+        String context = String.format("You have been invited to join the project '%s' in workspace '%s'", 
+            project.getProjectName(), 
+            project.getWorkspace());
+        
+        inbox.setContent(context);
         saveInbox(inbox);
     }
 

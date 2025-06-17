@@ -2,18 +2,23 @@ package com.upscale.upscale.service;
 
 import com.upscale.upscale.dto.ProjectCreate;
 import com.upscale.upscale.dto.ProjectData;
+import com.upscale.upscale.dto.TaskData;
 import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.entity.Task;
+import com.upscale.upscale.entity.User;
 import com.upscale.upscale.repository.ProjectRepo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 public class ProjectService {
 
     @Autowired
@@ -22,6 +27,12 @@ public class ProjectService {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private TaskService taskService;
+
+    @Autowired
+    private InboxService inboxService;
+
     public void save(Project project){
         projectRepo.save(project);
     }
@@ -29,8 +40,41 @@ public class ProjectService {
         return projectRepo.findById(projectId).orElse(null);
     }
 
-    public HashMap<String, List<Task>> getTasks(HashMap<String,List<String>> tasks){
+    public Task setTask(TaskData taskData, String createdId, String email) {
 
+        log.info("Received TaskData: {}", taskData);
+
+        Task task = new Task();
+        task.setTaskName(taskData.getTaskName());
+        task.setDate(taskData.getDate());
+        task.setCompleted(false);
+        task.setCreatedId(createdId);
+        task.setProjectIds(taskData.getProjectIds());
+        task.setDescription(taskData.getDescription());
+
+
+        List<String> assignId = new ArrayList<>();
+        for(String id:taskData.getAssignId()){
+
+            if(id != createdId){
+                inboxService.sendTaskDetails(task,email,id);
+            }
+
+            User user = userService.getUser(id);
+
+            assignId.add(user.getId());
+        }
+
+        task.setAssignId(assignId);
+
+        Task savedTask = taskService.save(task);
+        log.info("Saved Task to DB: {}", savedTask);
+
+        return savedTask;
+
+    }
+
+    public HashMap<String, List<Task>> getTasks(HashMap<String,List<String>> tasks){
         HashMap<String, List<Task>> newTasks = new HashMap<>();
 
         for (Map.Entry<String, List<String>> entry : tasks.entrySet()) {
@@ -41,19 +85,19 @@ public class ProjectService {
             for (String taskName : taskNames) {
                 Task task = new Task();
                 task.setTaskName(taskName);
-                // Set additional default values if required
-                taskList.add(task);
+                task.setCompleted(false);
+                task.setDate(new Date());
+                // Save the task to get an ID
+                Task savedTask = taskService.save(task);
+                taskList.add(savedTask);
             }
 
             newTasks.put(groupName, taskList);
         }
 
-        // Save or set the new tasks
-
         return newTasks;
     }
-    public boolean setProject(String emailId,ProjectCreate projectCreate){
-
+    public boolean setProject(String emailId, ProjectCreate projectCreate) {
         if(emailId.isEmpty()) return false;
 
         Project newProject = new Project();
@@ -66,11 +110,24 @@ public class ProjectService {
         newProject.setRecommended(projectCreate.getRecommended());
         newProject.setPopular(projectCreate.getPopular());
         newProject.setOther(projectCreate.getOther());
-        newProject.setTeammates(projectCreate.getTeammates());
+        
+        // Process teammates and send invitations
+        List<String> validTeammates = new ArrayList<>();
+        for (String teammate : projectCreate.getTeammates()) {
+            // Check if teammate exists in database
+            User teammateUser = userService.getUser(teammate);
+            if (teammateUser != null) {
+                validTeammates.add(teammate);
+                // Send project invitation via inbox
+                inboxService.sendProjectInvite(emailId, teammate, newProject);
+            } else {
+                log.warn("Teammate not found in database: {}", teammate);
+            }
+        }
+        newProject.setTeammates(validTeammates);
 
         save(newProject);
         return userService.setProject(newProject, emailId);
-
     }
 
 
@@ -112,5 +169,18 @@ public class ProjectService {
 
     public String getProjectName(String projectId){
         return projectRepo.findById(projectId).get().getProjectName();
+    }
+
+    public HashMap<String, String> getProjectsAsTeammate(String emailId) {
+        HashMap<String, String> teammateProjects = new HashMap<>();
+        List<Project> allProjects = projectRepo.findAll();
+        
+        for (Project project : allProjects) {
+            if (project.getTeammates() != null && project.getTeammates().contains(emailId)) {
+                teammateProjects.put(project.getId(), project.getProjectName());
+            }
+        }
+        
+        return teammateProjects;
     }
 }
