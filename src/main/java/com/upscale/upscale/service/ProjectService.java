@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -74,7 +75,7 @@ public class ProjectService {
 
     }
 
-    public HashMap<String, List<Task>> getTasks(HashMap<String,List<String>> tasks){
+    public HashMap<String, List<Task>> getTasks(String projectId, List<String> teammates, String creatorId, HashMap<String,List<String>> tasks){
         HashMap<String, List<Task>> newTasks = new HashMap<>();
 
         for (Map.Entry<String, List<String>> entry : tasks.entrySet()) {
@@ -87,6 +88,9 @@ public class ProjectService {
                 task.setTaskName(taskName);
                 task.setCompleted(false);
                 task.setDate(new Date());
+                task.setProjectIds(Collections.singletonList(projectId)); // Set project ID
+                task.setAssignId(teammates); // Assign to all teammates
+                task.setCreatedId(creatorId); // Set the creator ID
                 // Save the task to get an ID
                 Task savedTask = taskService.save(task);
                 taskList.add(savedTask);
@@ -105,7 +109,15 @@ public class ProjectService {
         newProject.setUserEmailid(emailId);
         newProject.setProjectName(projectCreate.getProjectName());
         newProject.setWorkspace(projectCreate.getWorkspace());
-        newProject.setTasks(getTasks(projectCreate.getTasks()));
+        
+        // Save the project first to get an ID before setting tasks
+        save(newProject);
+        
+        // Get the creator's ID
+        String creatorId = userService.getUser(emailId).getId();
+
+        // Now pass the project ID, teammates, and creator ID to getTasks
+        newProject.setTasks(getTasks(newProject.getId(), projectCreate.getTeammates(), creatorId, projectCreate.getTasks()));
         newProject.setLayouts(projectCreate.getLayouts());
         newProject.setRecommended(projectCreate.getRecommended());
         newProject.setPopular(projectCreate.getPopular());
@@ -126,7 +138,7 @@ public class ProjectService {
         }
         newProject.setTeammates(validTeammates);
 
-        save(newProject);
+        save(newProject); // Save again with updated tasks and teammates
         return userService.setProject(newProject, emailId);
     }
 
@@ -137,8 +149,10 @@ public class ProjectService {
         if(project != null){
 
             if (project.getTasks().isEmpty()) {
-                // Save or set the new tasks
-                project.setTasks(getTasks(projectCreate.getTasks()));
+                // Save or set the new tasks, providing existing project ID and teammates
+                // Get the creator's ID
+                String creatorId = userService.getUser(emailId).getId();
+                project.setTasks(getTasks(project.getId(), project.getTeammates(), creatorId, projectCreate.getTasks()));
             }
             if(project.getLayouts().isEmpty()) project.setLayouts(projectCreate.getLayouts());
             if(project.getRecommended().isEmpty()) project.setRecommended(projectCreate.getRecommended());

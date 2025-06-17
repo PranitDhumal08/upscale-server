@@ -105,4 +105,24 @@ public class ProjectController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @GetMapping("/list/{project-id}")
+    public ResponseEntity<?> getProjectTasks(@PathVariable("project-id") String projectId) {
+        try {
+            HashMap<String, Object> response = new HashMap<>();
+            Project project = projectService.getProject(projectId);
+
+            if (project != null) {
+                response.put("message", ">>> Project tasks fetched successfully <<<");
+                response.put("tasks", project.getTasks());
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", ">>> Project not found <<<");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            log.error("Error fetching project tasks for project ID: " + projectId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
