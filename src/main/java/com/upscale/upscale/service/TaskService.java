@@ -33,35 +33,49 @@ public class TaskService {
     public boolean setTask(TaskData taskData,String createdId,String email) {
 
         log.info("Received TaskData: {}", taskData);
+        log.info("CreatedId: {}, Email: {}", createdId, email);
 
         Task task = new Task();
         task.setTaskName(taskData.getTaskName());
         task.setDate(taskData.getDate());
         task.setCompleted(false);
+        task.setPriority(taskData.getPriority());
+        task.setStatus(taskData.getStatus());
         task.setCreatedId(createdId);
         task.setProjectIds(taskData.getProjectIds());
         task.setDescription(taskData.getDescription());
 
+        log.info("Task object created: {}", task);
 
         List<String> assignId = new ArrayList<>();
-        for(String id:taskData.getAssignId()){
-
-            if(id != createdId){
-                inboxService.sendTaskDetails(task,email,id);
+        for(String assigneeEmail : taskData.getAssignId()){
+            log.info("Processing assignee email: {}", assigneeEmail);
+            // Get user by email ID
+            User assigneeUser = userService.getUser(assigneeEmail);
+            
+            if(assigneeUser != null) {
+                String assigneeUserId = assigneeUser.getId();
+                log.info("Found user for email {}: {}", assigneeEmail, assigneeUserId);
+                
+                // Send inbox notification if assignee is different from creator
+                if(!assigneeUserId.equals(createdId)){
+                    log.info("Sending task details to: {}", assigneeEmail);
+                    inboxService.sendTaskDetails(task, email, assigneeEmail);
+                }
+                
+                assignId.add(assigneeUserId);
+            } else {
+                log.warn("User not found for email: {}", assigneeEmail);
             }
-
-            User user = userService.getUser(id);
-
-            assignId.add(user.getId());
         }
 
         task.setAssignId(assignId);
+        log.info("Final task before saving: {}", task);
 
         Task savedTask = save(task);
         log.info("Saved Task to DB: {}", savedTask);
 
         return savedTask != null;
-
     }
 
 
@@ -93,6 +107,8 @@ public class TaskService {
             taskData[i].setCompleted(assignedTasks.get(i).isCompleted());
             taskData[i].setAssignId(assignedTasks.get(i).getAssignId());
             taskData[i].setDescription(assignedTasks.get(i).getDescription());
+            taskData[i].setPriority(assignedTasks.get(i).getPriority());
+            taskData[i].setStatus(assignedTasks.get(i).getStatus());
 
         }
         return taskData;
@@ -123,6 +139,8 @@ public class TaskService {
             taskData[i].setDescription(task.getDescription());
             taskData[i].setAssignId(task.getAssignId());
             taskData[i].setProjectIds(task.getProjectIds());
+            taskData[i].setPriority(task.getPriority());
+            taskData[i].setStatus(task.getStatus());
         }
 
         return taskData;
@@ -130,6 +148,10 @@ public class TaskService {
 
    public Task getTask(String id) {
         return taskRepo.findById(id).orElse(null);
+   }
+
+   public List<Task> getTasksByProjectId(String projectId) {
+        return taskRepo.findByProjectIdsContaining(projectId);
    }
 
    public Task createTask(String taskName) {

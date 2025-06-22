@@ -35,33 +35,45 @@ public class TaskController {
     @PostMapping("/set-task")
     public ResponseEntity<?> setTask(HttpServletRequest request, @RequestBody TaskData taskData) {
         try {
-
+            log.info("Received task creation request: {}", taskData);
+            
             String email = tokenService.getEmailFromToken(request);
+            log.info("User email from token: {}", email);
+            
             HashMap<String, Object> response = new HashMap<>();
 
             if(taskData != null && userService.checkUserExists(email)) {
-
+                log.info("Task data and user are valid");
+                
                 User user = userService.getUser(email);
-                if(taskService.setTask(taskData, user.getId(), email)){
-
+                log.info("Found user: {}", user);
+                
+                boolean taskCreated = taskService.setTask(taskData, user.getId(), email);
+                log.info("Task creation result: {}", taskCreated);
+                
+                if(taskCreated){
                     log.info("Successfully set task");
                     response.put("message", "Successfully set task");
                     response.put("status", "success");
                     response.put("Create by", user.getFullName());
                     return new ResponseEntity<>(response, HttpStatus.OK);
-
+                } else {
+                    log.error("Task service returned false");
+                    response.put("message", "Failed to create task");
+                    response.put("status", "error");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
                 }
-            }
-            else{
-                response.put("message", "Failed to set task");
-                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            } else {
+                log.error("Invalid request - taskData: {}, userExists: {}", taskData != null, userService.checkUserExists(email));
+                response.put("message", "Invalid request data or user not found");
+                response.put("status", "error");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
         }catch (Exception e) {
-            log.error(e.getMessage());
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+            log.error("Exception in setTask: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return new ResponseEntity<>("Failed to set task", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @GetMapping("/get-task")

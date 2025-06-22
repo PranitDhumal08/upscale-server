@@ -13,7 +13,7 @@ import java.util.List;
 public class User {
 
     @Id
-    private String Id;
+    private String id;
     private String emailId;
     private boolean newUser;
     private String otp;

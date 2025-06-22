@@ -1,5 +1,6 @@
 package com.upscale.upscale.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -8,9 +9,14 @@ import java.util.List;
 
 @Data
 public class TaskData {
-    String id;
-    String taskName;
-    Date date;
+    private String id;
+    private String taskName;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date date;
+    
+    private String priority;
+    private String status;
     private boolean isCompleted;
     private String description;
     private List<String> assignId = new ArrayList<>();

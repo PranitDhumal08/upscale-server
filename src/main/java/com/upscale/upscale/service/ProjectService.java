@@ -10,6 +10,7 @@ import com.upscale.upscale.repository.ProjectRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.upscale.upscale.dto.AddTaskToProjectRequest;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -75,17 +76,18 @@ public class ProjectService {
 
     }
 
-    public HashMap<String, List<Task>> getTasks(String projectId, List<String> teammates, String creatorId, HashMap<String,List<String>> tasks){
-        HashMap<String, List<Task>> newTasks = new HashMap<>();
+    public HashMap<String, List<String>> getTasks(String projectId, List<String> teammates, String creatorId, HashMap<String,List<String>> tasks){
+        HashMap<String, List<String>> newTasks = new HashMap<>();
 
         for (Map.Entry<String, List<String>> entry : tasks.entrySet()) {
             String groupName = entry.getKey();
             List<String> taskNames = entry.getValue();
 
-            List<Task> taskList = new ArrayList<>();
+            List<String> taskIds = new ArrayList<>();
             for (String taskName : taskNames) {
                 Task task = new Task();
                 task.setTaskName(taskName);
+                task.setGroup(groupName);
                 task.setCompleted(false);
                 task.setDate(new Date());
                 task.setProjectIds(Collections.singletonList(projectId)); // Set project ID
@@ -93,10 +95,10 @@ public class ProjectService {
                 task.setCreatedId(creatorId); // Set the creator ID
                 // Save the task to get an ID
                 Task savedTask = taskService.save(task);
-                taskList.add(savedTask);
+                taskIds.add(savedTask.getId());
             }
 
-            newTasks.put(groupName, taskList);
+            newTasks.put(groupName, taskIds);
         }
 
         return newTasks;
@@ -172,7 +174,11 @@ public class ProjectService {
         ProjectData projectData = new ProjectData();
         projectData.setProjectName(project.getProjectName());
         projectData.setWorkspace(project.getWorkspace());
-        projectData.setTasks(project.getTasks());
+        
+        // This method now needs to resolve task IDs to Task objects.
+        // For now, I'll leave it empty as the main focus is the /list/{project-id} endpoint.
+        // projectData.setTasks(...); 
+        
         projectData.setLayouts(project.getLayouts());
         projectData.setRecommended(project.getRecommended());
         projectData.setPopular(project.getPopular());
@@ -196,5 +202,60 @@ public class ProjectService {
         }
         
         return teammateProjects;
+    }
+
+    public Task addTaskToProject(String projectId, String creatorEmail, AddTaskToProjectRequest addTaskRequest) {
+        Project project = getProject(projectId);
+        if (project == null) {
+            log.error("Project not found with id: {}", projectId);
+            return null;
+        }
+
+        User creator = userService.getUser(creatorEmail);
+        if (creator == null) {
+            log.error("Creator user not found with email: {}", creatorEmail);
+            return null;
+        }
+
+        Task task = new Task();
+        task.setTaskName(addTaskRequest.getTaskName());
+        task.setDescription(addTaskRequest.getDescription());
+        task.setDate(addTaskRequest.getDate());
+        task.setPriority(addTaskRequest.getPriority());
+        task.setStatus(addTaskRequest.getStatus());
+        task.setCompleted(false);
+        task.setCreatedId(creator.getId());
+        String group = addTaskRequest.getGroup();
+        if (group == null || group.trim().isEmpty()) {
+            group = "To do"; // Default group
+        }
+        task.setGroup(group);
+        task.setProjectIds(Collections.singletonList(projectId));
+
+        List<String> assignIds = new ArrayList<>();
+        if (addTaskRequest.getAssignId() != null) {
+            for (String assigneeEmail : addTaskRequest.getAssignId()) {
+                User assignee = userService.getUser(assigneeEmail);
+                if (assignee != null) {
+                    assignIds.add(assignee.getId());
+                    if (!assignee.getId().equals(creator.getId())) {
+                        inboxService.sendTaskDetails(task, creatorEmail, assigneeEmail);
+                    }
+                } else {
+                    log.warn("Assignee user not found for email: {}", assigneeEmail);
+                }
+            }
+        }
+        task.setAssignId(assignIds);
+
+        Task savedTask = taskService.save(task);
+        log.info("Saved new task with id: {}", savedTask.getId());
+
+        project.getTasks().computeIfAbsent(group, k -> new ArrayList<>()).add(savedTask.getId());
+
+        save(project);
+        log.info("Updated project {} with new task {}", projectId, savedTask.getId());
+
+        return savedTask;
     }
 }

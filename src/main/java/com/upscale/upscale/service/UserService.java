@@ -128,4 +128,8 @@ public class UserService {
         }
         return map;
     }
+
+    public User getUserById(String id) {
+        return userRepo.findById(id).orElse(null);
+    }
 }

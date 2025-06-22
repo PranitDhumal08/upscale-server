@@ -3,9 +3,12 @@ package com.upscale.upscale.controller;
 import com.upscale.upscale.dto.ProjectCreate;
 import com.upscale.upscale.dto.ProjectData;
 import com.upscale.upscale.entity.Project;
+import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
+import com.upscale.upscale.service.TaskService;
+import com.upscale.upscale.dto.AddTaskToProjectRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/project")
@@ -29,6 +33,8 @@ public class ProjectController {
     private TokenService tokenService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private TaskService taskService;
 
     @PostMapping("/create-project")
     public ResponseEntity<?> createProject(HttpServletRequest request, @RequestBody ProjectCreate projectCreate) {
@@ -109,19 +115,119 @@ public class ProjectController {
     @GetMapping("/list/{project-id}")
     public ResponseEntity<?> getProjectTasks(@PathVariable("project-id") String projectId) {
         try {
-            HashMap<String, Object> response = new HashMap<>();
-            Project project = projectService.getProject(projectId);
-
-            if (project != null) {
-                response.put("message", ">>> Project tasks fetched successfully <<<");
-                response.put("tasks", project.getTasks());
-                return new ResponseEntity<>(response, HttpStatus.OK);
-            } else {
-                response.put("message", ">>> Project not found <<<");
-                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            // Optional: Check if the project exists. It's good practice.
+            if (projectService.getProject(projectId) == null) {
+                return new ResponseEntity<>("Project not found", HttpStatus.NOT_FOUND);
             }
+    
+            // Fetch all tasks that have the given projectId in their projectIds list
+            List<Task> allTasksForProject = taskService.getTasksByProjectId(projectId);
+    
+            // Group the tasks by their 'group' field for the response
+            HashMap<String, List<Task>> groupedTasks = new HashMap<>();
+            for (Task task : allTasksForProject) {
+                String group = task.getGroup();
+                if (group == null || group.trim().isEmpty()) {
+                    group = "To do"; // Default group for tasks without one
+                }
+                // Replace assignId (user IDs) with user full names
+                List<String> nameList = new ArrayList<>();
+                for (String userId : task.getAssignId()) {
+                    String name = null;
+                    try {
+                        com.upscale.upscale.entity.User user = userService.getUserById(userId);
+                        if (user != null) name = user.getFullName();
+                    } catch (Exception e) {
+                        log.warn("Could not find user for id: {}", userId);
+                    }
+                    if (name != null && !name.isEmpty()) {
+                        nameList.add(name);
+                    } else {
+                        nameList.add(userId); // fallback to ID if name not found
+                    }
+                }
+                task.setAssignId(nameList);
+                groupedTasks.computeIfAbsent(group, k -> new ArrayList<>()).add(task);
+            }
+    
+            HashMap<String, Object> response = new HashMap<>();
+            response.put("message", ">>> Project tasks fetched successfully <<<");
+            response.put("tasks", groupedTasks);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
         } catch (Exception e) {
             log.error("Error fetching project tasks for project ID: " + projectId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/{projectId}/tasks")
+    public ResponseEntity<?> addTaskToProject(
+            HttpServletRequest request,
+            @PathVariable("projectId") String projectId,
+            @RequestBody AddTaskToProjectRequest addTaskRequest) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            Task newTask = projectService.addTaskToProject(projectId, email, addTaskRequest);
+            if (newTask != null) {
+                return new ResponseEntity<>(newTask, HttpStatus.CREATED);
+            } else {
+                return new ResponseEntity<>("Failed to add task or project not found", HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            log.error("Error adding task to project: {}", projectId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/board/{projectId}")
+    public ResponseEntity<?> getProjectBoard(@PathVariable("projectId") String projectId) {
+        try {
+            if (projectService.getProject(projectId) == null) {
+                return new ResponseEntity<>("Project not found", HttpStatus.NOT_FOUND);
+            }
+
+            List<Task> allTasksForProject = taskService.getTasksByProjectId(projectId);
+            HashMap<String, List<Object>> board = new HashMap<>();
+            for (Task task : allTasksForProject) {
+                String group = task.getGroup();
+                if (group == null || group.trim().isEmpty()) {
+                    group = "To do";
+                }
+                // Build a board card object for the frontend
+                List<String> assigneeNames = new ArrayList<>();
+                for (String userId : task.getAssignId()) {
+                    String name = null;
+                    try {
+                        com.upscale.upscale.entity.User user = userService.getUserById(userId);
+                        if (user != null) name = user.getFullName();
+                    } catch (Exception e) {
+                        log.warn("Could not find user for id: {}", userId);
+                    }
+                    if (name != null && !name.isEmpty()) {
+                        assigneeNames.add(name);
+                    } else {
+                        assigneeNames.add(userId);
+                    }
+                }
+                HashMap<String, Object> card = new HashMap<>();
+                card.put("id", task.getId());
+                card.put("taskName", task.getTaskName());
+                card.put("priority", task.getPriority());
+                card.put("status", task.getStatus());
+                card.put("assignees", assigneeNames);
+                card.put("date", task.getDate());
+                card.put("description", task.getDescription());
+                card.put("completed", task.isCompleted());
+                // Add more fields as needed for your board UI
+                board.computeIfAbsent(group, k -> new ArrayList<>()).add(card);
+            }
+            HashMap<String, Object> response = new HashMap<>();
+            response.put("message", ">>> Project board fetched successfully <<<");
+            response.put("board", board);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("Error fetching project board for project ID: " + projectId, e);
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

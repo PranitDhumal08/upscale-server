@@ -245,7 +245,7 @@ public class UserController {
 
             // Projects created by the user
             response.put("My Projects", userService.getProjects(emailId));
-            
+
             // Projects where user is a teammate
             response.put("Teammate Projects", projectService.getProjectsAsTeammate(emailId));
 

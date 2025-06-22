@@ -8,6 +8,7 @@ import java.util.List;
 public interface TaskRepo extends MongoRepository<Task, String> {
 
     List<Task> findByCreatedId(String createdId);
+    List<Task> findByProjectIdsContaining(String projectId);
 
 
 }

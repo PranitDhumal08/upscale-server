@@ -18,6 +18,9 @@ public class Task {
     private List<String> projectIds = new ArrayList<>();
     private String taskName;
     private boolean isCompleted;
+    private String priority;
+    private String status;
+    private String group;
     private Date date;
     private String description;
     private List<String> assignId = new ArrayList<>();
