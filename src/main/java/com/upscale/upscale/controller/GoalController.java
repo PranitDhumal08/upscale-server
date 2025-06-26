@@ -33,7 +33,7 @@ public class GoalController {
             HashMap<String,Object> response = new HashMap<>();
 
             if(goalData != null){
-
+                goalData.setGoalOwner(emailId);
                 if(goalService.setGoal(emailId, goalData)){
                     response.put("status", "success");
                     response.put("Data",goalData);
