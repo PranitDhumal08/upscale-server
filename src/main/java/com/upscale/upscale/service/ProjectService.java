@@ -108,6 +108,7 @@ public class ProjectService {
             List<String> taskNames = entry.getValue();
 
             Section section = new Section();
+            section.setId(UUID.randomUUID().toString());
             section.setSectionName(sectionName);
             List<Task> taskList = new ArrayList<>();
 
