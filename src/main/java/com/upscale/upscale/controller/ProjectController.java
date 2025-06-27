@@ -189,18 +189,29 @@ public class ProjectController {
     @GetMapping("/board/{projectId}")
     public ResponseEntity<?> getProjectBoard(@PathVariable("projectId") String projectId) {
         try {
-            if (projectService.getProject(projectId) == null) {
+            Project project = projectService.getProject(projectId);
+            if (project == null) {
                 return new ResponseEntity<>("Project not found", HttpStatus.NOT_FOUND);
+            }
+
+            // Map taskId -> sectionId
+            Map<String, String> taskToSectionMap = new HashMap<>();
+            for (Section section : project.getSection()) {
+                for (Task task : section.getTasks()) {
+                    taskToSectionMap.put(task.getId(), section.getId()); // <taskId, sectionId>
+                }
             }
 
             List<Task> allTasksForProject = taskService.getTasksByProjectId(projectId);
             HashMap<String, List<Object>> board = new HashMap<>();
+
             for (Task task : allTasksForProject) {
                 String group = task.getGroup();
                 if (group == null || group.trim().isEmpty()) {
                     group = "To do";
                 }
-                // Build a board card object for the frontend
+
+                // Build assignee names
                 List<String> assigneeNames = new ArrayList<>();
                 for (String userId : task.getAssignId()) {
                     String name = null;
@@ -210,12 +221,10 @@ public class ProjectController {
                     } catch (Exception e) {
                         log.warn("Could not find user for id: {}", userId);
                     }
-                    if (name != null && !name.isEmpty()) {
-                        assigneeNames.add(name);
-                    } else {
-                        assigneeNames.add(userId);
-                    }
+                    assigneeNames.add((name != null && !name.isEmpty()) ? name : userId);
                 }
+
+                // Build board card
                 HashMap<String, Object> card = new HashMap<>();
                 card.put("id", task.getId());
                 card.put("taskName", task.getTaskName());
@@ -225,9 +234,11 @@ public class ProjectController {
                 card.put("date", task.getDate());
                 card.put("description", task.getDescription());
                 card.put("completed", task.isCompleted());
-                // Add more fields as needed for your board UI
+                card.put("sectionId", taskToSectionMap.get(task.getId())); // ✅ Add sectionId
+
                 board.computeIfAbsent(group, k -> new ArrayList<>()).add(card);
             }
+
             HashMap<String, Object> response = new HashMap<>();
             response.put("message", ">>> Project board fetched successfully <<<");
             response.put("board", board);
@@ -237,6 +248,7 @@ public class ProjectController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
 
     @PostMapping("/add-section/{project-id}")
     public ResponseEntity<?> addSectionToProject(HttpServletRequest request, @RequestBody SectionData sectionData, @PathVariable("project-id") String projectId) {
