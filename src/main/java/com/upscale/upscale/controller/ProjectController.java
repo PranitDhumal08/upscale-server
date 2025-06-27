@@ -6,6 +6,7 @@ import com.upscale.upscale.dto.SectionData;
 import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.entity.Section;
 import com.upscale.upscale.entity.Task;
+import com.upscale.upscale.entity.User;
 import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
@@ -127,38 +128,36 @@ public class ProjectController {
                 return new ResponseEntity<>("No sections or tasks found for this project", HttpStatus.OK);
             }
 
-            // Grouped tasks by section name
-            HashMap<String, List<Task>> groupedTasks = new HashMap<>();
+            List<Map<String, Object>> sectionList = new ArrayList<>();
 
             for (Section section : sections) {
-                List<Task> enrichedTasks = new ArrayList<>();
+                Map<String, Object> sectionMap = new HashMap<>();
+                sectionMap.put("sectionId", section.getId());
+                sectionMap.put("sectionName", section.getSectionName());
 
+                List<Task> enrichedTasks = new ArrayList<>();
                 for (Task task : section.getTasks()) {
-                    // Enrich assignId with full names
                     List<String> nameList = new ArrayList<>();
                     for (String userId : task.getAssignId()) {
                         try {
-                            com.upscale.upscale.entity.User user = userService.getUserById(userId);
-                            if (user != null && user.getFullName() != null) {
-                                nameList.add(user.getFullName());
-                            } else {
-                                nameList.add(userId); // fallback to ID
-                            }
+                            User user = userService.getUserById(userId);
+                            nameList.add((user != null && user.getFullName() != null) ? user.getFullName() : userId);
                         } catch (Exception e) {
-                            nameList.add(userId); // fallback
                             log.warn("Could not find user for id: {}", userId);
+                            nameList.add(userId);
                         }
                     }
                     task.setAssignId(nameList);
                     enrichedTasks.add(task);
                 }
 
-                groupedTasks.put(section.getSectionName(), enrichedTasks);
+                sectionMap.put("tasks", enrichedTasks);
+                sectionList.add(sectionMap);
             }
 
-            HashMap<String, Object> response = new HashMap<>();
+            Map<String, Object> response = new HashMap<>();
             response.put("message", ">>> Project tasks fetched successfully <<<");
-            response.put("tasks", groupedTasks);
+            response.put("tasks", sectionList);
 
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
