@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@Document(collection = "section")
 public class Section {
     @Id
     private String id;

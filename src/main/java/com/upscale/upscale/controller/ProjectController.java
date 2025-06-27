@@ -4,6 +4,7 @@ import com.upscale.upscale.dto.ProjectCreate;
 import com.upscale.upscale.dto.ProjectData;
 import com.upscale.upscale.dto.SectionData;
 import com.upscale.upscale.entity.Project;
+import com.upscale.upscale.entity.Section;
 import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TokenService;
@@ -116,51 +117,56 @@ public class ProjectController {
     @GetMapping("/list/{project-id}")
     public ResponseEntity<?> getProjectTasks(@PathVariable("project-id") String projectId) {
         try {
-            // Optional: Check if the project exists. It's good practice.
-            if (projectService.getProject(projectId) == null) {
+            Project project = projectService.getProject(projectId);
+            if (project == null) {
                 return new ResponseEntity<>("Project not found", HttpStatus.NOT_FOUND);
             }
-    
-            // Fetch all tasks that have the given projectId in their projectIds list
-            List<Task> allTasksForProject = taskService.getTasksByProjectId(projectId);
-    
-            // Group the tasks by their 'group' field for the response
-            HashMap<String, List<Task>> groupedTasks = new HashMap<>();
-            for (Task task : allTasksForProject) {
-                String group = task.getGroup();
-                if (group == null || group.trim().isEmpty()) {
-                    group = "To do"; // Default group for tasks without one
-                }
-                // Replace assignId (user IDs) with user full names
-                List<String> nameList = new ArrayList<>();
-                for (String userId : task.getAssignId()) {
-                    String name = null;
-                    try {
-                        com.upscale.upscale.entity.User user = userService.getUserById(userId);
-                        if (user != null) name = user.getFullName();
-                    } catch (Exception e) {
-                        log.warn("Could not find user for id: {}", userId);
-                    }
-                    if (name != null && !name.isEmpty()) {
-                        nameList.add(name);
-                    } else {
-                        nameList.add(userId); // fallback to ID if name not found
-                    }
-                }
-                task.setAssignId(nameList);
-                groupedTasks.computeIfAbsent(group, k -> new ArrayList<>()).add(task);
+
+            List<Section> sections = project.getSection();
+            if (sections == null || sections.isEmpty()) {
+                return new ResponseEntity<>("No sections or tasks found for this project", HttpStatus.OK);
             }
-    
+
+            // Grouped tasks by section name
+            HashMap<String, List<Task>> groupedTasks = new HashMap<>();
+
+            for (Section section : sections) {
+                List<Task> enrichedTasks = new ArrayList<>();
+
+                for (Task task : section.getTasks()) {
+                    // Enrich assignId with full names
+                    List<String> nameList = new ArrayList<>();
+                    for (String userId : task.getAssignId()) {
+                        try {
+                            com.upscale.upscale.entity.User user = userService.getUserById(userId);
+                            if (user != null && user.getFullName() != null) {
+                                nameList.add(user.getFullName());
+                            } else {
+                                nameList.add(userId); // fallback to ID
+                            }
+                        } catch (Exception e) {
+                            nameList.add(userId); // fallback
+                            log.warn("Could not find user for id: {}", userId);
+                        }
+                    }
+                    task.setAssignId(nameList);
+                    enrichedTasks.add(task);
+                }
+
+                groupedTasks.put(section.getSectionName(), enrichedTasks);
+            }
+
             HashMap<String, Object> response = new HashMap<>();
             response.put("message", ">>> Project tasks fetched successfully <<<");
             response.put("tasks", groupedTasks);
-            return new ResponseEntity<>(response, HttpStatus.OK);
 
+            return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
-            log.error("Error fetching project tasks for project ID: " + projectId, e);
+            log.error("Error fetching project tasks for project ID: {}", projectId, e);
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
 
     @PostMapping("/{projectId}/tasks")
     public ResponseEntity<?> addTaskToProject(

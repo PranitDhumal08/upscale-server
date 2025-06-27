@@ -1,12 +1,14 @@
 package com.upscale.upscale.service;
 
 import com.upscale.upscale.dto.TaskData;
+import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.entity.Section;
 import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.entity.User;
 import com.upscale.upscale.repository.TaskRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -30,6 +32,10 @@ public class TaskService {
 
     @Autowired
     private SectionService sectionService;
+
+    @Autowired
+    @Lazy
+    private ProjectService projectService;
 
     public Task save(Task task) {
         return taskRepo.save(task);
@@ -74,21 +80,28 @@ public class TaskService {
             }
         }
 
-        if(!taskData.getSectionId().isEmpty()){
-            Optional<Section> section = sectionService.findById(taskData.getSectionId());
-
-            if(section.isPresent()){
-                section.get().getTasks().add(task);
-
-                sectionService.save(section.get());
-            }
-        }
-
         task.setAssignId(assignId);
         log.info("Final task before saving: {}", task);
 
         Task savedTask = save(task);
         log.info("Saved Task to DB: {}", savedTask);
+
+        if(!taskData.getSectionId().isEmpty()){
+            List<String> projectIds = taskData.getProjectIds();
+            for(String projectId : projectIds){
+
+                Project project = projectService.getProject(projectId);
+                for (Section s : project.getSection()) {
+                    if (s.getId() != null && s.getId().equals(taskData.getSectionId())) {
+                        s.getTasks().add(task);
+                    }
+                }
+
+                projectService.save(project); // only project, not section
+            }
+
+
+        }
 
         return savedTask != null;
     }

@@ -10,12 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -131,7 +126,7 @@ public class ProjectService {
             }
 
             section.setTasks(taskList);
-            sectionService.save(section);
+            //sectionService.save(section);
             sections.add(section);
         }
 
@@ -293,19 +288,29 @@ public class ProjectService {
     }
 
     public boolean addProjectSection(String projectId, SectionData sectionData) {
-        if(sectionData == null) return false;
+        if (sectionData == null || sectionData.getSectionName() == null || sectionData.getSectionName().isBlank())
+            return false;
 
         Project project = getProject(projectId);
-        if(project == null) return false;
+        if (project == null) return false;
 
+        // Optional: prevent duplicate section names
+        for (Section existing : project.getSection()) {
+            if (existing.getSectionName().equalsIgnoreCase(sectionData.getSectionName())) {
+                return false; // Don't add duplicate section names
+            }
+        }
 
         Section section = new Section();
+        section.setId(UUID.randomUUID().toString()); // Ensure unique ID
         section.setSectionName(sectionData.getSectionName());
 
-        sectionService.save(section);
         project.getSection().add(section);
+        save(project);
 
+        System.out.println("Section added: " + section.getId() + " → " + section.getSectionName());
 
         return true;
     }
+
 }
