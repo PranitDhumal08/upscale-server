@@ -11,6 +11,7 @@ import java.util.List;
 public class TaskData {
     private String id;
     private String taskName;
+    private String sectionId;
     
     @JsonFormat(pattern = "yyyy-MM-dd")
     private Date date;

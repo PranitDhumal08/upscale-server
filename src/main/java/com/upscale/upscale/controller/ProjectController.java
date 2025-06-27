@@ -2,6 +2,7 @@ package com.upscale.upscale.controller;
 
 import com.upscale.upscale.dto.ProjectCreate;
 import com.upscale.upscale.dto.ProjectData;
+import com.upscale.upscale.dto.SectionData;
 import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.service.ProjectService;
@@ -228,6 +229,39 @@ public class ProjectController {
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
             log.error("Error fetching project board for project ID: " + projectId, e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/add-section/{project-id}")
+    public ResponseEntity<?> addSectionToProject(HttpServletRequest request, @RequestBody SectionData sectionData, @PathVariable("project-id") String projectId) {
+
+        try {
+
+            String email = tokenService.getEmailFromToken(request);
+
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(sectionData != null) {
+
+                if(projectService.addProjectSection(projectId,sectionData)) {
+                    log.info("Added section to project: {}", projectId);
+                    response.put("message", "Added section to project");
+
+                    return new ResponseEntity<>(response, HttpStatus.CREATED);
+                }
+                else{
+                    response.put("message", "Failed to add section to project");
+                    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+                }
+            }else{
+                log.error("Project not found");
+                response.put("message", "Project not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+        }catch (Exception e) {
+            log.error("Error fetching project section data: {}", e);
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

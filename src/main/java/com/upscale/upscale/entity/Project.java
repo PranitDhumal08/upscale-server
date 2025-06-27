@@ -18,10 +18,11 @@ public class Project {
     private String projectName; //project name
     private String projectDescription; //description
     private String workspace; //workspace name
-    private HashMap<String,List<String>> tasks = new HashMap<>(); //task groups: task IDs
+    //private HashMap<String, List<String>> tasks = new HashMap<>(); // task groups: task IDs
     private String layouts; //layout gantt,board,timeline
     private List<String> recommended = new ArrayList<>(); //overview,List,Board,timeline,dashboard
     private List<String> popular = new ArrayList<>(); //gantt,calender,note,workload
     private List<String> other = new ArrayList<>(); //file,message,workflow
     private List<String> teammates = new ArrayList<>(); //teammates
+    private List<Section> section = new ArrayList<>(); // Sections in the project
 }

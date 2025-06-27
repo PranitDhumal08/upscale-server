@@ -36,7 +36,7 @@ public class TaskController {
     public ResponseEntity<?> setTask(HttpServletRequest request, @RequestBody TaskData taskData) {
         try {
             log.info("Received task creation request: {}", taskData);
-            
+
             String email = tokenService.getEmailFromToken(request);
             log.info("User email from token: {}", email);
             
@@ -44,13 +44,13 @@ public class TaskController {
 
             if(taskData != null && userService.checkUserExists(email)) {
                 log.info("Task data and user are valid");
-                
+
                 User user = userService.getUser(email);
                 log.info("Found user: {}", user);
                 
                 boolean taskCreated = taskService.setTask(taskData, user.getId(), email);
                 log.info("Task creation result: {}", taskCreated);
-                
+
                 if(taskCreated){
                     log.info("Successfully set task");
                     response.put("message", "Successfully set task");
@@ -61,7 +61,7 @@ public class TaskController {
                     log.error("Task service returned false");
                     response.put("message", "Failed to create task");
                     response.put("status", "error");
-                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
                 }
             } else {
                 log.error("Invalid request - taskData: {}, userExists: {}", taskData != null, userService.checkUserExists(email));

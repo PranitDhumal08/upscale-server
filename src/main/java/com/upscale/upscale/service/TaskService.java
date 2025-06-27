@@ -1,6 +1,7 @@
 package com.upscale.upscale.service;
 
 import com.upscale.upscale.dto.TaskData;
+import com.upscale.upscale.entity.Section;
 import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.entity.User;
 import com.upscale.upscale.repository.TaskRepo;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -25,6 +27,9 @@ public class TaskService {
     private InboxService inboxService;
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private SectionService sectionService;
 
     public Task save(Task task) {
         return taskRepo.save(task);
@@ -66,6 +71,16 @@ public class TaskService {
                 assignId.add(assigneeUserId);
             } else {
                 log.warn("User not found for email: {}", assigneeEmail);
+            }
+        }
+
+        if(!taskData.getSectionId().isEmpty()){
+            Optional<Section> section = sectionService.findById(taskData.getSectionId());
+
+            if(section.isPresent()){
+                section.get().getTasks().add(task);
+
+                sectionService.save(section.get());
             }
         }
 

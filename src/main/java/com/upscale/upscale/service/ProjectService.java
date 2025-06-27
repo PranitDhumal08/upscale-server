@@ -1,16 +1,14 @@
 package com.upscale.upscale.service;
 
-import com.upscale.upscale.dto.ProjectCreate;
-import com.upscale.upscale.dto.ProjectData;
-import com.upscale.upscale.dto.TaskData;
+import com.upscale.upscale.dto.*;
 import com.upscale.upscale.entity.Project;
+import com.upscale.upscale.entity.Section;
 import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.entity.User;
 import com.upscale.upscale.repository.ProjectRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.upscale.upscale.dto.AddTaskToProjectRequest;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +32,9 @@ public class ProjectService {
 
     @Autowired
     private InboxService inboxService;
+
+    @Autowired
+    private SectionService sectionService;
 
     public void save(Project project){
         projectRepo.save(project);
@@ -103,6 +104,40 @@ public class ProjectService {
 
         return newTasks;
     }
+
+    public List<Section> getSections(String projectId, List<String> teammates, String creatorId, HashMap<String, List<String>> tasksMap) {
+        List<Section> sections = new ArrayList<>();
+
+        for (Map.Entry<String, List<String>> entry : tasksMap.entrySet()) {
+            String sectionName = entry.getKey();
+            List<String> taskNames = entry.getValue();
+
+            Section section = new Section();
+            section.setSectionName(sectionName);
+            List<Task> taskList = new ArrayList<>();
+
+            for (String taskName : taskNames) {
+                Task task = new Task();
+                task.setTaskName(taskName);
+                task.setGroup(sectionName);
+                task.setCompleted(false);
+                task.setDate(new Date());
+                task.setProjectIds(Collections.singletonList(projectId));
+                task.setAssignId(teammates);
+                task.setCreatedId(creatorId);
+
+                Task savedTask = taskService.save(task);
+                taskList.add(savedTask);
+            }
+
+            section.setTasks(taskList);
+            sectionService.save(section);
+            sections.add(section);
+        }
+
+        return sections;
+    }
+
     public boolean setProject(String emailId, ProjectCreate projectCreate) {
         if(emailId.isEmpty()) return false;
 
@@ -111,20 +146,22 @@ public class ProjectService {
         newProject.setUserEmailid(emailId);
         newProject.setProjectName(projectCreate.getProjectName());
         newProject.setWorkspace(projectCreate.getWorkspace());
-        
+
         // Save the project first to get an ID before setting tasks
         save(newProject);
-        
+
         // Get the creator's ID
         String creatorId = userService.getUser(emailId).getId();
 
         // Now pass the project ID, teammates, and creator ID to getTasks
-        newProject.setTasks(getTasks(newProject.getId(), projectCreate.getTeammates(), creatorId, projectCreate.getTasks()));
+        List<Section> sections = getSections(newProject.getId(), projectCreate.getTeammates(), creatorId, projectCreate.getTasks());
+        newProject.setSection(sections);
+
         newProject.setLayouts(projectCreate.getLayouts());
         newProject.setRecommended(projectCreate.getRecommended());
         newProject.setPopular(projectCreate.getPopular());
         newProject.setOther(projectCreate.getOther());
-        
+
         // Process teammates and send invitations
         List<String> validTeammates = new ArrayList<>();
         for (String teammate : projectCreate.getTeammates()) {
@@ -140,6 +177,8 @@ public class ProjectService {
         }
         newProject.setTeammates(validTeammates);
 
+
+
         save(newProject); // Save again with updated tasks and teammates
         return userService.setProject(newProject, emailId);
     }
@@ -150,12 +189,6 @@ public class ProjectService {
 
         if(project != null){
 
-            if (project.getTasks().isEmpty()) {
-                // Save or set the new tasks, providing existing project ID and teammates
-                // Get the creator's ID
-                String creatorId = userService.getUser(emailId).getId();
-                project.setTasks(getTasks(project.getId(), project.getTeammates(), creatorId, projectCreate.getTasks()));
-            }
             if(project.getLayouts().isEmpty()) project.setLayouts(projectCreate.getLayouts());
             if(project.getRecommended().isEmpty()) project.setRecommended(projectCreate.getRecommended());
             if(project.getPopular().isEmpty()) project.setPopular(projectCreate.getPopular());
@@ -251,11 +284,28 @@ public class ProjectService {
         Task savedTask = taskService.save(task);
         log.info("Saved new task with id: {}", savedTask.getId());
 
-        project.getTasks().computeIfAbsent(group, k -> new ArrayList<>()).add(savedTask.getId());
+        //project.getTasks().computeIfAbsent(group, k -> new ArrayList<>()).add(savedTask.getId());
 
         save(project);
         log.info("Updated project {} with new task {}", projectId, savedTask.getId());
 
         return savedTask;
+    }
+
+    public boolean addProjectSection(String projectId, SectionData sectionData) {
+        if(sectionData == null) return false;
+
+        Project project = getProject(projectId);
+        if(project == null) return false;
+
+
+        Section section = new Section();
+        section.setSectionName(sectionData.getSectionName());
+
+        sectionService.save(section);
+        project.getSection().add(section);
+
+
+        return true;
     }
 }
