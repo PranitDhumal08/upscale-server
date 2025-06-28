@@ -191,4 +191,26 @@ public class TaskService {
         return task;
    }
 
+   public boolean deleteTask(String id) {
+        Task task = getTask(id);
+        if(task != null){
+
+            List<Project> projectList = projectService.getProjects();
+            for(Project project : projectList){
+
+                List<Section> section = project.getSection();
+                for(Section s : section){
+                    List<Task> tasks = s.getTasks();
+                    tasks.removeIf(t -> t.getId().equals(id));
+                }
+                projectService.save(project);
+
+            }
+            taskRepo.delete(task);
+            log.info("Deleted Task: {}", task);
+            return true;
+        }
+        return false;
+   }
+
 }

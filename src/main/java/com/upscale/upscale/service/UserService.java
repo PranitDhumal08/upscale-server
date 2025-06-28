@@ -132,4 +132,8 @@ public class UserService {
     public User getUserById(String id) {
         return userRepo.findById(id).orElse(null);
     }
+
+    public List<User> getAllUsers() {
+        return userRepo.findAll();
+    }
 }

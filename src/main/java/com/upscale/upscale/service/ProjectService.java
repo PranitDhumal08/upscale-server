@@ -314,4 +314,31 @@ public class ProjectService {
         return true;
     }
 
+    public List<Project> getProjects() {
+        return projectRepo.findAll();
+    }
+
+    public Boolean deleteProject(String projectId) {
+        Project project = getProject(projectId);
+        if (project == null) {
+            log.error("Project not found with id: {}", projectId);
+            return false;
+        }
+        projectRepo.delete(project);
+        log.info("Deleted project with id: {}", projectId);
+
+        List<User> users = userService.getAllUsers();
+
+        for (User user : users) {
+
+            List<Project> myproject = user.getProjects();
+
+            myproject.removeIf(p -> p.getId().equals(projectId));
+
+            user.setProjects(myproject);
+            userService.save(user);
+        }
+
+        return true;
+    }
 }

@@ -144,4 +144,27 @@ public class TaskController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @DeleteMapping("/delete/{task-id}")
+    public ResponseEntity<?> deleteTask(HttpServletRequest request, @PathVariable("task-id") String taskId) {
+
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(taskService.deleteTask(taskId)) {
+                response.put("message", "Successfully deleted");
+                response.put("status", "success");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("message", "Failed to delete task");
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

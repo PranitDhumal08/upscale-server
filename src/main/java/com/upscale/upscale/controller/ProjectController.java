@@ -283,4 +283,25 @@ public class ProjectController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @DeleteMapping("/delete/{project-id}")
+    public ResponseEntity<?> deleteProject(HttpServletRequest request, @PathVariable("project-id") String projectId) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(projectService.deleteProject(projectId)) {
+                response.put("message", "Project deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+
+            }else{
+                response.put("message", "Failed to delete project");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+        }catch (Exception e) {
+            log.error("Error fetching project data: {}", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
