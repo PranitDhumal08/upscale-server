@@ -129,6 +129,7 @@ public class TaskController {
 
             Task task = taskService.getTask(taskId);
             if(task != null) {
+                taskService.updateTask(taskId);
                 task.setCompleted(true);
                 taskService.save(task);
                 response.put("message", "Successfully completed");

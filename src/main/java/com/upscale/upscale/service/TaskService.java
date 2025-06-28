@@ -213,4 +213,26 @@ public class TaskService {
         return false;
    }
 
+    public void updateTask(String taskId) {
+        List<Project> projects = projectService.getProjects();
+
+        for (Project project : projects) {
+            List<Section> sections = project.getSection();
+            for (Section section : sections) {
+                List<Task> tasks = section.getTasks();
+                for (Task task : tasks) {
+                    if (task.getId().equals(taskId)) {
+                        task.setCompleted(true);
+                        projectService.save(project);
+                        log.info("Updated Task: {}", task);
+                        return;
+                    }
+                }
+            }
+        }
+
+        log.warn("Task with ID {} not found.", taskId);
+    }
+
+
 }
