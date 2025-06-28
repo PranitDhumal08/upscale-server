@@ -6,6 +6,7 @@ import com.upscale.upscale.service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.repository.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -253,6 +254,64 @@ public class UserController {
 
             return new ResponseEntity<>(response, HttpStatus.OK);
 
+        }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/profile-update")
+    public ResponseEntity<?> updateUserProfile(HttpServletRequest request, @RequestBody UserProfileUpdate userProfileUpdate){
+
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(userProfileUpdate != null){
+
+                if(userService.updateUserProfile(emailId, userProfileUpdate)){
+
+                    response.put("message", "Profile updated successfully");
+                    response.put("email", emailId);
+                    log.info("Profile updated successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                else{
+                    response.put("message", "Profile update failed, Not Found");
+                    response.put("email", emailId);
+                    log.info("Profile update failed, Not Found");
+                    return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+                }
+
+            }
+            else{
+                response.put("message", "Profile update failed, Not Found");
+                response.put("email", emailId);
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+        }catch (Exception e){
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/get-profile")
+    public ResponseEntity<?> getUserProfile(HttpServletRequest request){
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(userService.getUserProfileUpdate(emailId) != null){
+                UserProfileUpdate userProfileUpdate = userService.getUserProfileUpdate(emailId);
+                response.put("Data", userProfileUpdate);
+                response.put("email", emailId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
         }catch (Exception e){
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }

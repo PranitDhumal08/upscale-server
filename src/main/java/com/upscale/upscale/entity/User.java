@@ -26,5 +26,9 @@ public class User {
     private List<Project> projects = new ArrayList<>();
     private List<String> teammates = new ArrayList<>();
    // private HashMap<String,Chat> chats = new HashMap<>();
+    private String pronouns;
+    private String jobTitle;
+    private String departmentOrTeam;
+    private String aboutMe;
 
 }

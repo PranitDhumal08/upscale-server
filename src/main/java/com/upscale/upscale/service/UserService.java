@@ -3,9 +3,11 @@ package com.upscale.upscale.service;
 import com.upscale.upscale.dto.LoginUser;
 import com.upscale.upscale.dto.UserCreate;
 import com.upscale.upscale.dto.UserLogin;
+import com.upscale.upscale.dto.UserProfileUpdate;
 import com.upscale.upscale.entity.Project;
 import com.upscale.upscale.entity.User;
 import com.upscale.upscale.repository.UserRepo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Random;
 
 @Service
+@Slf4j
 public class UserService {
 
     @Autowired
@@ -135,5 +138,44 @@ public class UserService {
 
     public List<User> getAllUsers() {
         return userRepo.findAll();
+    }
+
+    public boolean updateUserProfile(String emailId, UserProfileUpdate userProfileUpdate){
+
+        User user = getUser(emailId);
+
+        if(user != null){
+
+            if(!userProfileUpdate.getFullName().isEmpty()) user.setFullName(userProfileUpdate.getFullName());
+            if(!userProfileUpdate.getPronouns().isEmpty()) user.setPronouns(userProfileUpdate.getPronouns());
+            if(!userProfileUpdate.getJobTitle().isEmpty()) user.setJobTitle(userProfileUpdate.getJobTitle());
+            if(!userProfileUpdate.getDepartmentOrTeam().isEmpty()) user.setDepartmentOrTeam(userProfileUpdate.getDepartmentOrTeam());
+            if(!userProfileUpdate.getRole().isEmpty()) user.setRole(userProfileUpdate.getRole());
+            if(!userProfileUpdate.getAboutMe().isEmpty()) user.setAboutMe(userProfileUpdate.getAboutMe());
+
+            log.info("Updating user profile"+user);
+            userRepo.save(user);
+            return true;
+
+        }
+
+        return false;
+    }
+
+    public UserProfileUpdate getUserProfileUpdate(String emailId) {
+        User user = getUser(emailId);
+        if(user != null){
+
+            UserProfileUpdate userProfileUpdate = new UserProfileUpdate();
+            userProfileUpdate.setFullName(user.getFullName());
+            userProfileUpdate.setPronouns(user.getPronouns());
+            userProfileUpdate.setJobTitle(user.getJobTitle());
+            userProfileUpdate.setDepartmentOrTeam(user.getDepartmentOrTeam());
+            userProfileUpdate.setRole(user.getRole());
+            userProfileUpdate.setAboutMe(user.getAboutMe());
+            return userProfileUpdate;
+
+        }
+        return null;
     }
 }
