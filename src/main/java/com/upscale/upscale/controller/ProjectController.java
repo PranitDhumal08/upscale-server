@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Date;
 
 @RestController
 @RequestMapping("/api/project")
@@ -347,5 +348,52 @@ public class ProjectController {
             stats.put("upcomingTasksByAssignee", mapped);
         }
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/{projectId}/calendar-tasks")
+    public ResponseEntity<?> getProjectCalendarTasks(
+            @PathVariable("projectId") String projectId,
+            @RequestParam(value = "start", required = false) String start,
+            @RequestParam(value = "end", required = false) String end
+    ) {
+        List<Task> tasks = taskService.getTasksByProjectId(projectId);
+        Map<String, List<Map<String, Object>>> calendar = new HashMap<>();
+        java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        Date startDate = null, endDate = null;
+        try {
+            if (start != null) startDate = fmt.parse(start);
+            if (end != null) endDate = fmt.parse(end);
+        } catch (Exception ignored) {}
+        for (Task task : tasks) {
+            if (task.getDate() == null) continue;
+            Date taskDate = task.getDate();
+            // Filter by range if provided
+            if (startDate != null && taskDate.before(startDate)) continue;
+            if (endDate != null && taskDate.after(endDate)) continue;
+            String dateKey = fmt.format(taskDate);
+            Map<String, Object> taskInfo = new HashMap<>();
+            taskInfo.put("id", task.getId());
+            taskInfo.put("title", task.getTaskName());
+            // Assignees as names
+            List<String> assigneeNames = new ArrayList<>();
+            if (task.getAssignId() != null) {
+                for (String userId : task.getAssignId()) {
+                    String name = userId;
+                    try {
+                        User user = userService.getUserById(userId);
+                        if (user != null && user.getFullName() != null && !user.getFullName().isEmpty()) {
+                            name = user.getFullName();
+                        }
+                    } catch (Exception ignored) {}
+                    assigneeNames.add(name);
+                }
+            }
+            taskInfo.put("assignees", assigneeNames);
+            taskInfo.put("start", task.getDate());
+            taskInfo.put("status", task.isCompleted() ? "completed" : "incomplete");
+            // If you have end date or span, add here (not in current Task entity)
+            calendar.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(taskInfo);
+        }
+        return ResponseEntity.ok(calendar);
     }
 }
