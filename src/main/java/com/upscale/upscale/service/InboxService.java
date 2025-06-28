@@ -1,10 +1,7 @@
 package com.upscale.upscale.service;
 
 import com.upscale.upscale.dto.InboxData;
-import com.upscale.upscale.entity.Inbox;
-import com.upscale.upscale.entity.People;
-import com.upscale.upscale.entity.Task;
-import com.upscale.upscale.entity.Project;
+import com.upscale.upscale.entity.*;
 import com.upscale.upscale.repository.InboxRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,6 +80,18 @@ public class InboxService {
         String context = "You have given a task "+task.getTaskName();
 
         inbox.setContent(context);
+
+        saveInbox(inbox);
+    }
+
+    public void sendProjectMessage(Message message, String senderEmailId, String receiverEmailId){
+
+        Inbox inbox = new Inbox();
+
+        inbox.setSenderId(senderEmailId);
+        inbox.setReceiverId(receiverEmailId);
+
+        inbox.setContent(message.getBody());
 
         saveInbox(inbox);
     }
