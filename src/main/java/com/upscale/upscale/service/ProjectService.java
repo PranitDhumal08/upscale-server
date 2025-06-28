@@ -341,4 +341,36 @@ public class ProjectService {
 
         return true;
     }
+
+    public boolean deleteSection(String sectionId) {
+        List<Project> projectList = getProjects();
+
+        if (projectList.isEmpty()) return false;
+
+        for (Project project : projectList) {
+            List<Section> sections = project.getSection();
+
+            Iterator<Section> iterator = sections.iterator();
+            while (iterator.hasNext()) {
+                Section section = iterator.next();
+
+                if (section.getId().equals(sectionId)) {
+                    List<Task> tasks = section.getTasks();
+
+                    if (tasks != null && !tasks.isEmpty()) {
+                        for (Task task : tasks) {
+                            taskService.deleteTask(task.getId());
+                        }
+                        log.info("Section's Task Deleted with id: {}", sectionId);
+                    }
+
+                    iterator.remove();
+                    log.info("Deleted Section with id: {}", sectionId);
+                }
+            }
+            save(project);
+        }
+        return true;
+    }
+
 }

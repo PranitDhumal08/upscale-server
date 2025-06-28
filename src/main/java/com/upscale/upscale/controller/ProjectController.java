@@ -304,4 +304,26 @@ public class ProjectController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @DeleteMapping("/delete/section/{section-id}")
+    public ResponseEntity<?> deleteSection(HttpServletRequest request, @PathVariable("section-id") String sectionId) {
+
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(projectService.deleteSection(sectionId)){
+                response.put("message", "Section deleted successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                log.info("Section not found");
+                response.put("message", "Section not found");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        }catch (Exception e) {
+            log.error("Error fetching project section data: {}", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
