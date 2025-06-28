@@ -188,65 +188,66 @@ public class ProjectController {
 
     @GetMapping("/board/{projectId}")
     public ResponseEntity<?> getProjectBoard(@PathVariable("projectId") String projectId) {
-        try {
-            Project project = projectService.getProject(projectId);
-            if (project == null) {
-                return new ResponseEntity<>("Project not found", HttpStatus.NOT_FOUND);
-            }
-
-            // Map taskId -> sectionId
-            Map<String, String> taskToSectionMap = new HashMap<>();
-            for (Section section : project.getSection()) {
-                for (Task task : section.getTasks()) {
-                    taskToSectionMap.put(task.getId(), section.getId()); // <taskId, sectionId>
-                }
-            }
-
-            List<Task> allTasksForProject = taskService.getTasksByProjectId(projectId);
-            HashMap<String, List<Object>> board = new HashMap<>();
-
-            for (Task task : allTasksForProject) {
-                String group = task.getGroup();
-                if (group == null || group.trim().isEmpty()) {
-                    group = "To do";
-                }
-
-                // Build assignee names
-                List<String> assigneeNames = new ArrayList<>();
-                for (String userId : task.getAssignId()) {
-                    String name = null;
-                    try {
-                        com.upscale.upscale.entity.User user = userService.getUserById(userId);
-                        if (user != null) name = user.getFullName();
-                    } catch (Exception e) {
-                        log.warn("Could not find user for id: {}", userId);
-                    }
-                    assigneeNames.add((name != null && !name.isEmpty()) ? name : userId);
-                }
-
-                // Build board card
-                HashMap<String, Object> card = new HashMap<>();
-                card.put("id", task.getId());
-                card.put("taskName", task.getTaskName());
-                card.put("priority", task.getPriority());
-                card.put("status", task.getStatus());
-                card.put("assignees", assigneeNames);
-                card.put("date", task.getDate());
-                card.put("description", task.getDescription());
-                card.put("completed", task.isCompleted());
-                card.put("sectionId", taskToSectionMap.get(task.getId())); // ✅ Add sectionId
-
-                board.computeIfAbsent(group, k -> new ArrayList<>()).add(card);
-            }
-
-            HashMap<String, Object> response = new HashMap<>();
-            response.put("message", ">>> Project board fetched successfully <<<");
-            response.put("board", board);
-            return new ResponseEntity<>(response, HttpStatus.OK);
-        } catch (Exception e) {
-            log.error("Error fetching project board for project ID: " + projectId, e);
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+//        try {
+//            Project project = projectService.getProject(projectId);
+//            if (project == null) {
+//                return new ResponseEntity<>("Project not found", HttpStatus.NOT_FOUND);
+//            }
+//
+//            // Map taskId -> sectionId
+//            Map<String, String> taskToSectionMap = new HashMap<>();
+//            for (Section section : project.getSection()) {
+//                for (Task task : section.getTasks()) {
+//                    taskToSectionMap.put(task.getId(), section.getId()); // <taskId, sectionId>
+//                }
+//            }
+//
+//            List<Task> allTasksForProject = taskService.getTasksByProjectId(projectId);
+//            HashMap<String, List<Object>> board = new HashMap<>();
+//
+//            for (Task task : allTasksForProject) {
+//                String group = task.getGroup();
+//                if (group == null || group.trim().isEmpty()) {
+//                    group = "To do";
+//                }
+//
+//                // Build assignee names
+//                List<String> assigneeNames = new ArrayList<>();
+//                for (String userId : task.getAssignId()) {
+//                    String name = null;
+//                    try {
+//                        com.upscale.upscale.entity.User user = userService.getUserById(userId);
+//                        if (user != null) name = user.getFullName();
+//                    } catch (Exception e) {
+//                        log.warn("Could not find user for id: {}", userId);
+//                    }
+//                    assigneeNames.add((name != null && !name.isEmpty()) ? name : userId);
+//                }
+//
+//                // Build board card
+//                HashMap<String, Object> card = new HashMap<>();
+//                card.put("id", task.getId());
+//                card.put("taskName", task.getTaskName());
+//                card.put("priority", task.getPriority());
+//                card.put("status", task.getStatus());
+//                card.put("assignees", assigneeNames);
+//                card.put("date", task.getDate());
+//                card.put("description", task.getDescription());
+//                card.put("completed", task.isCompleted());
+//                card.put("sectionId", taskToSectionMap.get(task.getId())); // ✅ Add sectionId
+//
+//                board.computeIfAbsent(group, k -> new ArrayList<>()).add(card);
+//            }
+//
+//            HashMap<String, Object> response = new HashMap<>();
+//            response.put("message", ">>> Project board fetched successfully <<<");
+//            response.put("board", board);
+//            return new ResponseEntity<>(response, HttpStatus.OK);
+//        } catch (Exception e) {
+//            log.error("Error fetching project board for project ID: " + projectId, e);
+//            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+//        }
+        return getProjectTasks(projectId);
     }
 
 
