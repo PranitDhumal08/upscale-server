@@ -326,4 +326,26 @@ public class ProjectController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @GetMapping("/{projectId}/dashboard-stats")
+    public ResponseEntity<?> getDashboardStats(@PathVariable("projectId") String projectId) {
+        Map<String, Object> stats = projectService.getDashboardStats(projectId);
+        // Map assignee IDs to names for upcomingTasksByAssignee
+        if (stats.containsKey("upcomingTasksByAssignee")) {
+            Map<String, Integer> byAssignee = (Map<String, Integer>) stats.get("upcomingTasksByAssignee");
+            Map<String, Integer> mapped = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : byAssignee.entrySet()) {
+                String name = entry.getKey();
+                try {
+                    com.upscale.upscale.entity.User user = userService.getUserById(entry.getKey());
+                    if (user != null && user.getFullName() != null && !user.getFullName().isEmpty()) {
+                        name = user.getFullName();
+                    }
+                } catch (Exception ignored) {}
+                mapped.put(name, entry.getValue());
+            }
+            stats.put("upcomingTasksByAssignee", mapped);
+        }
+        return ResponseEntity.ok(stats);
+    }
 }

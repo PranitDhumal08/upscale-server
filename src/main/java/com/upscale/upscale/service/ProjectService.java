@@ -373,4 +373,79 @@ public class ProjectService {
         return true;
     }
 
+    public Map<String, Object> getDashboardStats(String projectId) {
+        Map<String, Object> stats = new HashMap<>();
+        List<Task> tasks = taskService.getTasksByProjectId(projectId);
+        Project project = getProject(projectId);
+        if (project == null) {
+            stats.put("error", "Project not found");
+            return stats;
+        }
+        int totalTasks = tasks.size();
+        int totalCompletedTasks = 0;
+        int totalIncompleteTasks = 0;
+        int totalOverdueTasks = 0;
+        Map<String, Integer> incompleteTasksBySection = new HashMap<>();
+        Map<String, Integer> tasksByCompletionStatus = new HashMap<>();
+        Map<String, Integer> upcomingTasksByAssignee = new HashMap<>();
+        Map<String, Integer> completedTasksByDate = new HashMap<>();
+        Map<String, Integer> totalTasksByDate = new HashMap<>();
+        Date now = new Date();
+        for (Section section : project.getSection()) {
+            int incompleteCount = 0;
+            if (section.getTasks() != null) {
+                for (Task task : section.getTasks()) {
+                    if (!task.isCompleted()) {
+                        incompleteCount++;
+                    }
+                }
+            }
+            incompleteTasksBySection.put(section.getSectionName(), incompleteCount);
+        }
+        for (Task task : tasks) {
+            boolean completed = task.isCompleted();
+            if (completed) totalCompletedTasks++;
+            else totalIncompleteTasks++;
+            // Overdue: incomplete and due date before now
+            if (!completed && task.getDate() != null && task.getDate().before(now)) {
+                totalOverdueTasks++;
+            }
+            // Completion status
+            String statusKey = completed ? "Completed" : "Incomplete";
+            tasksByCompletionStatus.put(statusKey, tasksByCompletionStatus.getOrDefault(statusKey, 0) + 1);
+            // Upcoming by assignee (only for incomplete tasks)
+            if (!completed && task.getAssignId() != null) {
+                for (String userId : task.getAssignId()) {
+                    upcomingTasksByAssignee.put(userId, upcomingTasksByAssignee.getOrDefault(userId, 0) + 1);
+                }
+            }
+            // Completion over time (by date, formatted as yyyy-MM-dd)
+            if (task.getDate() != null) {
+                String dateKey = new java.text.SimpleDateFormat("yyyy-MM-dd").format(task.getDate());
+                totalTasksByDate.put(dateKey, totalTasksByDate.getOrDefault(dateKey, 0) + 1);
+                if (completed) {
+                    completedTasksByDate.put(dateKey, completedTasksByDate.getOrDefault(dateKey, 0) + 1);
+                }
+            }
+        }
+        // Build completion over time list
+        List<Map<String, Object>> taskCompletionOverTime = new ArrayList<>();
+        for (String date : totalTasksByDate.keySet()) {
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("date", date);
+            entry.put("total", totalTasksByDate.get(date));
+            entry.put("completed", completedTasksByDate.getOrDefault(date, 0));
+            taskCompletionOverTime.add(entry);
+        }
+        stats.put("totalCompletedTasks", totalCompletedTasks);
+        stats.put("totalIncompleteTasks", totalIncompleteTasks);
+        stats.put("totalOverdueTasks", totalOverdueTasks);
+        stats.put("totalTasks", totalTasks);
+        stats.put("incompleteTasksBySection", incompleteTasksBySection);
+        stats.put("tasksByCompletionStatus", tasksByCompletionStatus);
+        stats.put("upcomingTasksByAssignee", upcomingTasksByAssignee);
+        stats.put("taskCompletionOverTime", taskCompletionOverTime);
+        return stats;
+    }
+
 }
