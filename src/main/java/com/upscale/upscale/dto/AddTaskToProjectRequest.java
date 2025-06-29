@@ -13,6 +13,10 @@ public class AddTaskToProjectRequest {
     private List<String> assignId; // list of emails
     @JsonFormat(pattern = "yyyy-MM-dd")
     private Date date;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date startDate;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date endDate;
     private String priority;
     private String status;
     private String group; // e.g., "To do", "Doing", "Done"

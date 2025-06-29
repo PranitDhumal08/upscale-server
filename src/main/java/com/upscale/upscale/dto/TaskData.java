@@ -22,4 +22,8 @@ public class TaskData {
     private String description;
     private List<String> assignId = new ArrayList<>();
     private List<String> projectIds = new ArrayList<>();
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date startDate;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date endDate;
 }

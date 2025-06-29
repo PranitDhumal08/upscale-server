@@ -24,5 +24,7 @@ public class Task {
     private Date date;
     private String description;
     private List<String> assignId = new ArrayList<>();
+    private Date startDate;
+    private Date endDate;
 
 }

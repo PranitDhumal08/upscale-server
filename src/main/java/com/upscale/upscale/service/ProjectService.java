@@ -44,6 +44,8 @@ public class ProjectService {
 
         Task task = new Task();
         task.setTaskName(taskData.getTaskName());
+        task.setStartDate(taskData.getStartDate() != null ? taskData.getStartDate() : taskData.getDate());
+        task.setEndDate(taskData.getEndDate());
         task.setDate(taskData.getDate());
         task.setCompleted(false);
         task.setCreatedId(createdId);
@@ -249,6 +251,8 @@ public class ProjectService {
         Task task = new Task();
         task.setTaskName(addTaskRequest.getTaskName());
         task.setDescription(addTaskRequest.getDescription());
+        task.setStartDate(addTaskRequest.getStartDate() != null ? addTaskRequest.getStartDate() : addTaskRequest.getDate());
+        task.setEndDate(addTaskRequest.getEndDate());
         task.setDate(addTaskRequest.getDate());
         task.setPriority(addTaskRequest.getPriority());
         task.setStatus(addTaskRequest.getStatus());
@@ -407,7 +411,7 @@ public class ProjectService {
             if (completed) totalCompletedTasks++;
             else totalIncompleteTasks++;
             // Overdue: incomplete and due date before now
-            if (!completed && task.getDate() != null && task.getDate().before(now)) {
+            if (!completed && task.getStartDate() != null && task.getStartDate().before(now)) {
                 totalOverdueTasks++;
             }
             // Completion status
@@ -420,8 +424,8 @@ public class ProjectService {
                 }
             }
             // Completion over time (by date, formatted as yyyy-MM-dd)
-            if (task.getDate() != null) {
-                String dateKey = new java.text.SimpleDateFormat("yyyy-MM-dd").format(task.getDate());
+            if (task.getStartDate() != null) {
+                String dateKey = new java.text.SimpleDateFormat("yyyy-MM-dd").format(task.getStartDate());
                 totalTasksByDate.put(dateKey, totalTasksByDate.getOrDefault(dateKey, 0) + 1);
                 if (completed) {
                     completedTasksByDate.put(dateKey, completedTasksByDate.getOrDefault(dateKey, 0) + 1);

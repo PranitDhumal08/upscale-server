@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Date;
+import java.util.LinkedHashMap;
 
 @RestController
 @RequestMapping("/api/project")
@@ -365,12 +366,12 @@ public class ProjectController {
             if (end != null) endDate = fmt.parse(end);
         } catch (Exception ignored) {}
         for (Task task : tasks) {
-            if (task.getDate() == null) continue;
-            Date taskDate = task.getDate();
+            Date taskStart = task.getStartDate() != null ? task.getStartDate() : task.getDate();
+            if (taskStart == null) continue;
             // Filter by range if provided
-            if (startDate != null && taskDate.before(startDate)) continue;
-            if (endDate != null && taskDate.after(endDate)) continue;
-            String dateKey = fmt.format(taskDate);
+            if (startDate != null && taskStart.before(startDate)) continue;
+            if (endDate != null && taskStart.after(endDate)) continue;
+            String dateKey = fmt.format(taskStart);
             Map<String, Object> taskInfo = new HashMap<>();
             taskInfo.put("id", task.getId());
             taskInfo.put("title", task.getTaskName());
@@ -389,11 +390,58 @@ public class ProjectController {
                 }
             }
             taskInfo.put("assignees", assigneeNames);
-            taskInfo.put("start", task.getDate());
+            taskInfo.put("start", task.getStartDate() != null ? task.getStartDate() : task.getDate());
+            taskInfo.put("end", task.getEndDate());
             taskInfo.put("status", task.isCompleted() ? "completed" : "incomplete");
-            // If you have end date or span, add here (not in current Task entity)
             calendar.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(taskInfo);
         }
         return ResponseEntity.ok(calendar);
+    }
+
+    @GetMapping("/{projectId}/timeline")
+    public ResponseEntity<?> getProjectTimeline(@PathVariable("projectId") String projectId) {
+        Project project = projectService.getProject(projectId);
+        if (project == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Project not found");
+        }
+        List<Map<String, Object>> timeline = new ArrayList<>();
+        List<Section> sections = project.getSection();
+        if (sections != null) {
+            for (Section section : sections) {
+                Map<String, Object> sectionMap = new HashMap<>();
+                sectionMap.put("sectionName", section.getSectionName() != null ? section.getSectionName() : "Untitled section");
+                sectionMap.put("sectionId", section.getId());
+                List<Map<String, Object>> tasksList = new ArrayList<>();
+                if (section.getTasks() != null) {
+                    for (Task task : section.getTasks()) {
+                        Map<String, Object> taskInfo = new HashMap<>();
+                        taskInfo.put("id", task.getId());
+                        taskInfo.put("taskName", task.getTaskName());
+                        // Assignees as names/initials
+                        List<String> assigneeNames = new ArrayList<>();
+                        if (task.getAssignId() != null) {
+                            for (String userId : task.getAssignId()) {
+                                String name = userId;
+                                try {
+                                    User user = userService.getUserById(userId);
+                                    if (user != null && user.getFullName() != null && !user.getFullName().isEmpty()) {
+                                        name = user.getFullName();
+                                    }
+                                } catch (Exception ignored) {}
+                                assigneeNames.add(name);
+                            }
+                        }
+                        taskInfo.put("assignees", assigneeNames);
+                        taskInfo.put("start", task.getStartDate() != null ? task.getStartDate() : task.getDate());
+                        taskInfo.put("end", task.getEndDate());
+                        taskInfo.put("status", task.isCompleted() ? "completed" : "incomplete");
+                        tasksList.add(taskInfo);
+                    }
+                }
+                sectionMap.put("tasks", tasksList);
+                timeline.add(sectionMap);
+            }
+        }
+        return ResponseEntity.ok(timeline);
     }
 }

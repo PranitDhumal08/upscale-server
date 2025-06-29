@@ -48,6 +48,8 @@ public class TaskService {
 
         Task task = new Task();
         task.setTaskName(taskData.getTaskName());
+        task.setStartDate(taskData.getStartDate() != null ? taskData.getStartDate() : taskData.getDate());
+        task.setEndDate(taskData.getEndDate());
         task.setDate(taskData.getDate());
         task.setCompleted(false);
         task.setPriority(taskData.getPriority());
@@ -132,6 +134,8 @@ public class TaskService {
             taskData[i] = new TaskData();
             taskData[i].setTaskName(assignedTasks.get(i).getTaskName());
             taskData[i].setDate(assignedTasks.get(i).getDate());
+            taskData[i].setStartDate(assignedTasks.get(i).getStartDate());
+            taskData[i].setEndDate(assignedTasks.get(i).getEndDate());
             taskData[i].setCompleted(assignedTasks.get(i).isCompleted());
             taskData[i].setAssignId(assignedTasks.get(i).getAssignId());
             taskData[i].setDescription(assignedTasks.get(i).getDescription());
@@ -164,6 +168,8 @@ public class TaskService {
             taskData[i].setTaskName(task.getTaskName());
             taskData[i].setCompleted(task.isCompleted());
             taskData[i].setDate(task.getDate());
+            taskData[i].setStartDate(task.getStartDate());
+            taskData[i].setEndDate(task.getEndDate());
             taskData[i].setDescription(task.getDescription());
             taskData[i].setAssignId(task.getAssignId());
             taskData[i].setProjectIds(task.getProjectIds());
@@ -234,5 +240,51 @@ public class TaskService {
         log.warn("Task with ID {} not found.", taskId);
     }
 
+    public boolean addTaskToProject(String taskName, String sectionId) {
+        if(taskName == null || sectionId == null) return false;
+        List<Project> projects = projectService.getProjects();
+        for(Project project : projects){
+            List<Section> sections = project.getSection();
+            for(Section section : sections){
+                if(sectionId.equals(section.getId())){
+                    List<Task> tasks = section.getTasks();
+                    Task newTask = new Task();
+                    newTask.setTaskName(taskName);
+                    save(newTask);
+                    tasks.add(newTask);
+                }
+            }
+            projectService.save(project);
+        }
+        return true;
+    }
 
+    public boolean updateTaskToProject(String taskId, TaskData taskData) {
+
+        if(taskId == null || taskData == null) return false;
+
+        Project project = projectService.getProject(taskData.getProjectIds().get(0));
+
+        List<Section> sections = project.getSection();
+        for(Section section : sections){
+            List<Task> tasks = section.getTasks();
+            for(Task task : tasks){
+                if(taskId.equals(task.getId())){
+
+                    if (taskData.getAssignId() != null) task.setAssignId(taskData.getAssignId());
+                    if (taskData.getStartDate() != null) task.setStartDate(taskData.getStartDate());
+                    if (taskData.getEndDate() != null) task.setEndDate(taskData.getEndDate());
+                    if (taskData.getPriority() != null) task.setPriority(taskData.getPriority());
+                    if (taskData.getStatus() != null) task.setStatus(taskData.getStatus());
+                    if (taskData.getDescription() != null) task.setDescription(taskData.getDescription());
+
+                    taskRepo.save(task);
+
+                }
+            }
+        }
+        projectService.save(project);
+        return true;
+
+    }
 }

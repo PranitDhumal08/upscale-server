@@ -13,5 +13,5 @@ public class Section {
     @Id
     private String id;
     private String sectionName;
-    List<Task> tasks = new ArrayList<>();
+    private List<Task> tasks = new ArrayList<>();
 }

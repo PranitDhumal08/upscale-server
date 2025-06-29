@@ -2,8 +2,11 @@ package com.upscale.upscale.controller;
 
 
 import com.upscale.upscale.dto.TaskData;
+import com.upscale.upscale.entity.Project;
+import com.upscale.upscale.entity.Section;
 import com.upscale.upscale.entity.Task;
 import com.upscale.upscale.entity.User;
+import com.upscale.upscale.service.ProjectService;
 import com.upscale.upscale.service.TaskService;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
@@ -30,6 +33,9 @@ public class TaskController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ProjectService projectService;
 
 
     @PostMapping("/set-task")
@@ -168,4 +174,75 @@ public class TaskController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @PostMapping("/create-name")
+    public ResponseEntity<?> createTaskName(HttpServletRequest request, @RequestBody HashMap<String, String> payload) {
+        try{
+
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if(!payload.isEmpty()){
+
+                String taskName = payload.get("taskName");
+                String sectionId = payload.get("sectionId");
+
+                if(taskService.addTaskToProject(taskName, sectionId)) {
+
+                    response.put("taskName", taskName);
+                    response.put("status", "created");
+                    log.info("Successfully created task: {}",taskName);
+                    return new ResponseEntity<>(response, HttpStatus.CREATED);
+                }
+                else{
+                    response.put("message", "Failed to create task");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+
+
+            }
+            else{
+                log.error("Task name is required");
+                response.put("message", "Task name is required");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+
+            }
+
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/create-task/details/{task-id}")
+    public ResponseEntity<?> createTaskDetails(
+            HttpServletRequest request,
+            @PathVariable("task-id") String taskId,
+            @RequestBody TaskData taskData
+    ) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            Task task = taskService.getTask(taskId);
+            if (task == null) {
+                response.put("message", "Task not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            if(taskService.updateTaskToProject(taskId,taskData)){
+                response.put("message", "Task updated and moved to section successfully");
+                response.put("taskId", task.getId());
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("message", "Failed to update task");
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }
