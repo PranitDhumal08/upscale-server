@@ -3,9 +3,11 @@ package com.upscale.upscale.service;
 import com.upscale.upscale.dto.user.LoginUser;
 import com.upscale.upscale.dto.user.UserCreate;
 import com.upscale.upscale.dto.user.UserProfileUpdate;
+import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.UserRepo;
+import com.upscale.upscale.service.portfolio.PortfolioService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -25,6 +27,9 @@ public class UserService {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private PortfolioService portfolioService;
 
     private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
@@ -115,19 +120,38 @@ public class UserService {
         return new ArrayList<>();
     }
 
-    public HashMap<String,String> getProjects(String emailId) {
+    public HashMap<String,List<String>> getProjects(String emailId) {
 
-        HashMap<String,String> map = new HashMap<>();
+        HashMap<String,List<String>> map = new HashMap<>();
 
         User user = getUser(emailId);
         if(user != null){
             List<Project> projects = user.getProjects();
-            for(Project project : projects){
-                map.put(project.getId(),project.getProjectName());
+            if(projects != null){
+                for(Project project : projects){
+                    List<String> values = new ArrayList<>();
+                    values.add(project.getProjectName());
+                    values.add("project");
+                    map.put(project.getId(),values);
+                }
             }
+
+            List<Portfolio> portfolio = portfolioService.getPortFolio(emailId);
+
+            if(portfolio != null){
+                for(Portfolio p : portfolio){
+                    List<String> values = new ArrayList<>();
+                    values.add(p.getPortfolioName());
+                    values.add("portfolio");
+
+                    map.put(p.getId(),values);
+                }
+            }
+
 
             return map;
         }
+
         return map;
     }
 

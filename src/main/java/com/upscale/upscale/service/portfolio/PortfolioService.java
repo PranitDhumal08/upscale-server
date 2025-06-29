@@ -7,6 +7,7 @@ import com.upscale.upscale.repository.PortfolioRepo;
 import com.upscale.upscale.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class PortfolioService {
     private PortfolioRepo portfolioRepo;
 
     @Autowired
+    @Lazy
     private UserService userService;
 
     public void save(Portfolio portfolio) {
