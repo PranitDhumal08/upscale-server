@@ -1,6 +1,6 @@
 package com.upscale.upscale.repository;
 
-import com.upscale.upscale.entity.User;
+import com.upscale.upscale.entity.user.User;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface UserRepo extends MongoRepository<User, String> {

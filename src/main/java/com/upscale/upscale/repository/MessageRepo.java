@@ -1,6 +1,6 @@
 package com.upscale.upscale.repository;
 
-import com.upscale.upscale.entity.Message;
+import com.upscale.upscale.entity.project.Message;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;

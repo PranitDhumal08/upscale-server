@@ -53,7 +53,7 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return email -> {
-            com.upscale.upscale.entity.User user = userService.getUser(email);
+            com.upscale.upscale.entity.user.User user = userService.getUser(email);
             if (user == null) {
                 // Return a dummy user with a non-matching password if not found
                 // This prevents leaking information about existing users

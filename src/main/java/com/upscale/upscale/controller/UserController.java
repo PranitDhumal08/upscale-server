@@ -1,12 +1,14 @@
 package com.upscale.upscale.controller;
 
-import com.upscale.upscale.dto.*;
-import com.upscale.upscale.entity.User;
+import com.upscale.upscale.dto.user.*;
+import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.service.*;
+import com.upscale.upscale.service.project.EmailService;
+import com.upscale.upscale.service.project.GoalService;
+import com.upscale.upscale.service.project.ProjectService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.repository.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

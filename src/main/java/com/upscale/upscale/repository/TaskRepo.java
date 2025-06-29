@@ -1,6 +1,6 @@
 package com.upscale.upscale.repository;
 
-import com.upscale.upscale.entity.Task;
+import com.upscale.upscale.entity.project.Task;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;

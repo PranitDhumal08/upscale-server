@@ -1,11 +1,10 @@
 package com.upscale.upscale.service;
 
-import com.upscale.upscale.dto.LoginUser;
-import com.upscale.upscale.dto.UserCreate;
-import com.upscale.upscale.dto.UserLogin;
-import com.upscale.upscale.dto.UserProfileUpdate;
-import com.upscale.upscale.entity.Project;
-import com.upscale.upscale.entity.User;
+import com.upscale.upscale.dto.user.LoginUser;
+import com.upscale.upscale.dto.user.UserCreate;
+import com.upscale.upscale.dto.user.UserProfileUpdate;
+import com.upscale.upscale.entity.project.Project;
+import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.UserRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
