@@ -18,4 +18,6 @@ public class Portfolio {
     private String defaultView;
     private List<String> teammates = new ArrayList<>();
 
+    private List<String> projectsIds = new ArrayList<>();
+
 }

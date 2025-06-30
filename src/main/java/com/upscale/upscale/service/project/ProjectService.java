@@ -13,6 +13,7 @@ import com.upscale.upscale.repository.ProjectRepo;
 import com.upscale.upscale.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -25,6 +26,7 @@ public class ProjectService {
     private ProjectRepo projectRepo;
 
     @Autowired
+    @Lazy
     private UserService userService;
 
     @Autowired

@@ -7,7 +7,7 @@ import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.TaskRepo;
 import com.upscale.upscale.service.TokenService;
-import com.upscale.upscale.service.UserService;
+import com.upscale.upscale.service.UserLookupService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -24,7 +24,7 @@ public class TaskService {
     private TaskRepo taskRepo;
 
     @Autowired
-    private UserService userService;
+    private UserLookupService userLookupService;
 
     @Autowired
     private InboxService inboxService;
@@ -65,7 +65,7 @@ public class TaskService {
         for(String assigneeEmail : taskData.getAssignId()){
             log.info("Processing assignee email: {}", assigneeEmail);
             // Get user by email ID
-            User assigneeUser = userService.getUser(assigneeEmail);
+            User assigneeUser = userLookupService.getUserByEmail(assigneeEmail);
             
             if(assigneeUser != null) {
                 String assigneeUserId = assigneeUser.getId();
@@ -124,7 +124,7 @@ public class TaskService {
     }
 
     public TaskData[] getTaskDataByAssignId(String email) {
-        User user = userService.getUser(email);
+        User user = userLookupService.getUserByEmail(email);
         log.info("User ID: " + user.getId());
 
         List<Task> assignedTasks = getTasksByAssignId(user.getId());
@@ -148,7 +148,7 @@ public class TaskService {
     }
 
     public TaskData[] getAll(String email) {
-        User user = userService.getUser(email);
+        User user = userLookupService.getUserByEmail(email);
         log.info("User ID: " + user.getId());
 
         //List<Task> assignedTasks = getTasksByAssignId(user.getId());
