@@ -1,6 +1,7 @@
 package com.upscale.upscale.controller.project;
 
 import com.upscale.upscale.dto.project.ProjectCreate;
+import com.upscale.upscale.dto.project.ProjectOverview;
 import com.upscale.upscale.dto.project.SectionData;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Section;
@@ -441,5 +442,58 @@ public class ProjectController {
             }
         }
         return ResponseEntity.ok(timeline);
+    }
+
+    @PostMapping("/overview-add/{project-id}")
+    public ResponseEntity<?> overviewAdd(HttpServletRequest request, @PathVariable("project-id") String projectId, @RequestBody ProjectOverview projectOverview) {
+
+        try {
+
+            String email = tokenService.getEmailFromToken(request);
+
+            HashMap<String,Object> response = new HashMap<>();
+
+            if(projectService.updateProject(projectOverview,projectId)){
+                response.put("status", "success");
+                response.put("message", "Project updated successfully");
+                return ResponseEntity.ok(response);
+            }
+            else{
+                response.put("status", "failed");
+                response.put("message", "Project update failed");
+                return ResponseEntity.ok(response);
+            }
+        }catch (Exception e){
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/get-overview/{project-id}")
+    public ResponseEntity<?> getProjectOverview(HttpServletRequest request, @PathVariable("project-id") String projectId) {
+
+        try {
+
+            HashMap<String,Object> response = new HashMap<>();
+
+            HashMap<String, Object> data = projectService.getProjectOverview(projectId);
+
+            if(data != null){
+                response.put("status", "success");
+                response.put("message", "Project overview successfully");
+                response.put("data", data);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else {
+                response.put("status", "failed");
+                response.put("message", "Project overview failed");
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+
+            }
+
+        }catch (Exception e){
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }

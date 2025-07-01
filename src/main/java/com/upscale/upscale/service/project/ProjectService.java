@@ -1,9 +1,6 @@
 package com.upscale.upscale.service.project;
 
-import com.upscale.upscale.dto.project.AddTaskToProjectRequest;
-import com.upscale.upscale.dto.project.ProjectCreate;
-import com.upscale.upscale.dto.project.ProjectData;
-import com.upscale.upscale.dto.project.SectionData;
+import com.upscale.upscale.dto.project.*;
 import com.upscale.upscale.dto.task.TaskData;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Section;
@@ -459,4 +456,42 @@ public class ProjectService {
         return stats;
     }
 
+    public boolean updateProject(ProjectOverview projectOverview, String projectId) {
+
+        Project project = getProject(projectId);
+
+        if(project == null){
+            log.error("Project not found");
+            return false;
+        }
+
+        if(!projectOverview.getProjectDescription().isEmpty()) project.setProjectDescription(projectOverview.getProjectDescription());
+        if(projectOverview.getStartDate() != null) project.setStartDate(projectOverview.getStartDate());
+        if(projectOverview.getEndDate() != null) project.setEndDate(projectOverview.getEndDate());
+
+        save(project);
+        log.info("Project updated");
+        return true;
+    }
+
+    public HashMap<String,Object> getProjectOverview(String projectId) {
+        Project project = getProject(projectId);
+
+        if(project == null){
+            log.error("Project not found");
+            return null;
+        }
+
+        HashMap<String,Object> data = new HashMap<>();
+
+        data.put("Project description", project.getProjectDescription());
+        String projectOwner = userService.getUser(project.getUserEmailid()).getFullName();
+        data.put("Project Roles", projectOwner);
+        data.put("Project start date",project.getStartDate());
+        data.put("Project end date",project.getEndDate());
+
+        log.info("Project overview Retrieved");
+        return data;
+
+    }
 }

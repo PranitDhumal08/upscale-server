@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -24,4 +25,7 @@ public class Project {
     private List<String> other = new ArrayList<>(); //file,message,workflow
     private List<String> teammates = new ArrayList<>(); //teammates
     private List<Section> section = new ArrayList<>(); // Sections in the project
+
+    private Date startDate;
+    private Date endDate;
 }
