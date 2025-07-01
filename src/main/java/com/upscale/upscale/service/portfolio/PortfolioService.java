@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
@@ -136,6 +138,33 @@ public class PortfolioService {
             projectProgress.put("projectName", project.getProjectName());
             projectProgress.put("totalTasks", totalTasks);
             projectProgress.put("completedTasks", completedTasks);
+            projectProgress.put("startDate", project.getStartDate());
+            projectProgress.put("endDate", project.getEndDate());
+
+            HashMap<String,String> projectOwner = new HashMap<>();
+            projectOwner.put("name", userService.getUser(project.getUserEmailid()).getFullName());
+            projectOwner.put("email", project.getUserEmailid());
+
+            projectProgress.put("projectOwner",projectOwner);
+
+            Date startDate = project.getStartDate();
+            Date endDate = project.getEndDate();
+
+
+            LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate currentDate = LocalDate.now();
+
+            String status;
+            if ((currentDate.isEqual(startLocalDate) || currentDate.isAfter(startLocalDate)) &&
+                    (currentDate.isEqual(endLocalDate) || currentDate.isBefore(endLocalDate))) {
+                status = "On Track";
+            } else {
+                status = "No Recent Update";
+            }
+
+            projectProgress.put("status", status);
+
             projectProgress.put("progressPercent", totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0);
 
             projectProgressList.add(projectProgress);
