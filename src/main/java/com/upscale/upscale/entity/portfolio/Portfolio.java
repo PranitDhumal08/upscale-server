@@ -20,4 +20,6 @@ public class Portfolio {
 
     private List<String> projectsIds = new ArrayList<>();
 
+    String priority;
+
 }

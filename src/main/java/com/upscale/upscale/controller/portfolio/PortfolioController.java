@@ -185,4 +185,31 @@ public class PortfolioController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @PutMapping("/set-priority/{portfolio-id}/{project-id}")
+    public ResponseEntity<?> setProjectPriority(HttpServletRequest request, @RequestBody HashMap<String,String> map, @PathVariable("portfolio-id") String portfolioId, @PathVariable("project-id") String projectId) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String,Object> response = new HashMap<>();
+
+            String priority = map.get("priority");
+
+            if(portfolioService.updatePriority(portfolioId,priority,projectId)){
+                response.put("status", "success");
+                response.put("message", "Project priority updated");
+
+                log.info("Project priority updated");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }else{
+                response.put("status", "error");
+                response.put("message", "Project priority update failed");
+                log.info("Project priority update failed");
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

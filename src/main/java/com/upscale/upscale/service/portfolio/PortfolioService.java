@@ -140,7 +140,7 @@ public class PortfolioService {
             projectProgress.put("completedTasks", completedTasks);
             projectProgress.put("startDate", project.getStartDate());
             projectProgress.put("endDate", project.getEndDate());
-
+            projectProgress.put("priority",project.getPortfolioPriority());
             HashMap<String,String> projectOwner = new HashMap<>();
             projectOwner.put("name", userService.getUser(project.getUserEmailid()).getFullName());
             projectOwner.put("email", project.getUserEmailid());
@@ -176,4 +176,38 @@ public class PortfolioService {
 
         return progressSummary;
     }
+
+    public boolean updatePriority(String portfolioId, String priority, String projectId) {
+        Optional<Portfolio> optionalPortfolio = portfolioRepo.findById(portfolioId);
+
+        if(optionalPortfolio.isPresent()) {
+            Portfolio portfolio = optionalPortfolio.get();
+            log.info("Updating priority for portfolio " + portfolio.getPortfolioName());
+
+            List<String> projectIds = portfolio.getProjectsIds();
+
+            if(projectIds.contains(projectId)) {
+                // Try fetching as a Portfolio first
+                Optional<Portfolio> optionalInnerPortfolio = portfolioRepo.findById(projectId);
+                if(optionalInnerPortfolio.isPresent()) {
+                    Portfolio innerPortfolio = optionalInnerPortfolio.get();
+                    innerPortfolio.setPriority(priority);
+                    save(innerPortfolio);
+                    return true;
+                }
+
+                // Try fetching as a Project
+                Project innerProject = projectService.getProject(projectId);
+                if(innerProject != null) {
+                    innerProject.setPortfolioPriority(priority);
+                    projectService.save(innerProject);
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        }
+        return false;
+    }
+
 }
