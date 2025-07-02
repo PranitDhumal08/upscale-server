@@ -210,6 +210,80 @@ public class PortfolioService {
         return false;
     }
 
+    public Map<String, Object> getPortfolioDashboardData(String portfolioId) {
+        Map<String, Object> dashboard = new HashMap<>();
+        Optional<Portfolio> portfolioOpt = getPortfolio(portfolioId);
+        if (portfolioOpt.isEmpty()) {
+            dashboard.put("error", "Portfolio not found");
+            return dashboard;
+        }
+        Portfolio portfolio = portfolioOpt.get();
+        List<String> projectIds = portfolio.getProjectsIds();
+        Set<String> seenProjectIds = new HashSet<>();
 
+        int totalTasks = 0;
+        int totalCompletedTasks = 0;
+        int totalIncompleteTasks = 0;
+        int totalOverdueTasks = 0;
+        Map<String, Integer> incompleteTasksByProject = new HashMap<>();
+        Map<String, Integer> projectStatusCount = new HashMap<>();
+        Map<String, Integer> upcomingTasksByAssignee = new HashMap<>();
+        Map<String, Integer> portfolioStatusCount = new HashMap<>();
+        List<Map<String, Object>> projectStatusList = new ArrayList<>();
+
+        for (String projectId : projectIds) {
+            if (seenProjectIds.contains(projectId)) continue;
+            seenProjectIds.add(projectId);
+            Project project = projectService.getProject(projectId);
+            if (project == null) continue;
+            Map<String, Object> stats = projectService.getDashboardStats(projectId);
+            int projectTotalTasks = (int) stats.getOrDefault("totalTasks", 0);
+            int projectCompletedTasks = (int) stats.getOrDefault("totalCompletedTasks", 0);
+            int projectIncompleteTasks = (int) stats.getOrDefault("totalIncompleteTasks", 0);
+            int projectOverdueTasks = (int) stats.getOrDefault("totalOverdueTasks", 0);
+            totalTasks += projectTotalTasks;
+            totalCompletedTasks += projectCompletedTasks;
+            totalIncompleteTasks += projectIncompleteTasks;
+            totalOverdueTasks += projectOverdueTasks;
+            incompleteTasksByProject.put(project.getProjectName(), projectIncompleteTasks);
+
+            String status = "No recent updates";
+            Date now = new Date();
+            if (project.getStartDate() != null && project.getEndDate() != null) {
+                if (!now.before(project.getStartDate()) && !now.after(project.getEndDate())) {
+                    status = "On track";
+                }
+            }
+            projectStatusCount.put(status, projectStatusCount.getOrDefault(status, 0) + 1);
+            Map<String, Object> projectStatus = new HashMap<>();
+            projectStatus.put("projectName", project.getProjectName());
+            projectStatus.put("status", status);
+            projectStatusList.add(projectStatus);
+            // Upcoming tasks by assignee
+            Map<String, Integer> projectUpcoming = (Map<String, Integer>) stats.getOrDefault("upcomingTasksByAssignee", new HashMap<>());
+            for (Map.Entry<String, Integer> entry : projectUpcoming.entrySet()) {
+                String assignee = entry.getKey();
+                int count = entry.getValue();
+                upcomingTasksByAssignee.put(assignee, upcomingTasksByAssignee.getOrDefault(assignee, 0) + count);
+            }
+        }
+        // Portfolio status (for donut chart)
+        portfolioStatusCount.put("No recent updates", 0);
+        portfolioStatusCount.put("On track", 0);
+        for (Map<String, Object> projectStatus : projectStatusList) {
+            String status = (String) projectStatus.get("status");
+            portfolioStatusCount.put(status, portfolioStatusCount.getOrDefault(status, 0) + 1);
+        }
+        dashboard.put("totalTasks", totalTasks);
+        dashboard.put("totalCompletedTasks", totalCompletedTasks);
+        dashboard.put("totalIncompleteTasks", totalIncompleteTasks);
+        dashboard.put("totalOverdueTasks", totalOverdueTasks);
+        dashboard.put("incompleteTasksByProject", incompleteTasksByProject);
+        dashboard.put("projectStatusCount", projectStatusCount);
+        dashboard.put("upcomingTasksByAssignee", upcomingTasksByAssignee);
+        dashboard.put("portfolioStatusCount", portfolioStatusCount);
+        dashboard.put("projectStatusList", projectStatusList);
+        return dashboard;
+    }
 
 }
