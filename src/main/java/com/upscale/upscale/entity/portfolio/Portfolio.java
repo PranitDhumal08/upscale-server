@@ -1,5 +1,6 @@
 package com.upscale.upscale.entity.portfolio;
 
+import com.upscale.upscale.dto.portfolio.FieldAttribute;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -22,11 +23,13 @@ public class Portfolio {
 
     private List<String> projectsIds = new ArrayList<>();
 
-    String priority;
+    private HashMap<String, FieldAttribute> attributes = new HashMap<>();
 
-    Date startDate;
-    Date endDate;
+    private String priority;
 
-    HashMap<String,String> fields = new HashMap<>();
+    private Date startDate;
+    private Date endDate;
+
+    private HashMap<String,String> fields = new HashMap<>();
 
 }

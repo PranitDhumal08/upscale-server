@@ -1,6 +1,7 @@
 package com.upscale.upscale.service.portfolio;
 
 import com.upscale.upscale.dto.portfolio.CreatePortFolio;
+import com.upscale.upscale.dto.portfolio.FieldAttribute;
 import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Section;
@@ -9,6 +10,7 @@ import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.PortfolioRepo;
 import com.upscale.upscale.service.UserService;
 import com.upscale.upscale.service.project.ProjectService;
+import com.upscale.upscale.service.portfolio.FieldService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -31,6 +33,9 @@ public class PortfolioService {
     private UserService userService;
     @Autowired
     private ProjectService projectService;
+    @Autowired
+    @Lazy
+    private FieldService fieldService;
 
     public void save(Portfolio portfolio) {
         portfolioRepo.save(portfolio);
@@ -88,6 +93,8 @@ public class PortfolioService {
             List<String> projectIds = portfolio.getProjectsIds();
             projectIds.add(projectId);
             portfolio.setProjectsIds(projectIds);
+            portfolio.getAttributes().put(projectId, null);
+
             save(portfolio);
             return portfolio.getPortfolioName();
         }
@@ -136,6 +143,9 @@ public class PortfolioService {
         Set<String> seenProjectIds = new HashSet<>();
         List<Map<String, Object>> projectProgressList = new ArrayList<>();
 
+        // Get all fieldWiseData for all projects (field name → value)
+        Map<String, Map<String, Object>> allFieldWiseData = fieldService.getAllProjectsFieldWiseData(portfolioId);
+
         for (String projectId : projectIds) {
             if (seenProjectIds.contains(projectId)) continue; // skip duplicates
             seenProjectIds.add(projectId);
@@ -171,9 +181,14 @@ public class PortfolioService {
                 projectProgress.put("endDate", project.getEndDate());
                 projectProgress.put("priority",project.getPortfolioPriority());
                 HashMap<String,String> projectOwner = new HashMap<>();
-                projectOwner.put("name", userService.getUser(project.getUserEmailid()).getFullName());
-                projectOwner.put("email", project.getUserEmailid());
-
+                User user = userService.getUser(project.getUserEmailid());
+                if (user != null) {
+                    projectOwner.put("name", user.getFullName());
+                    projectOwner.put("email", user.getEmailId());
+                } else {
+                    projectOwner.put("name", "Unknown");
+                    projectOwner.put("email", project.getUserEmailid());
+                }
                 projectProgress.put("projectOwner",projectOwner);
 
                 Date startDate = project.getStartDate();
@@ -196,11 +211,6 @@ public class PortfolioService {
                 projectProgress.put("progressPercent", totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0);
             }
             else if(portfolio1 != null){
-                // int totalTasks = 0;
-                // int completedTasks = 0;
-                // If you want to count tasks for a portfolio, you need to implement logic here.
-                // For now, do NOT use project.getSection() because project is null.
-
                 projectProgress.put("projectId", projectId);
                 projectProgress.put("projectName", portfolio1.getPortfolioName());
                 projectProgress.put("startDate", portfolio1.getStartDate());
@@ -218,8 +228,12 @@ public class PortfolioService {
                 projectProgress.put("projectOwner",projectOwner);
                 projectProgress.put("status", "No Recent Update");
             } else {
-                // If neither project nor portfolio1 is found, skip this ID
                 continue;
+            }
+
+            Map<String, Object> fieldWiseData = allFieldWiseData.get(projectId);
+            if (fieldWiseData != null) {
+                projectProgress.putAll(fieldWiseData);
             }
 
             projectProgressList.add(projectProgress);

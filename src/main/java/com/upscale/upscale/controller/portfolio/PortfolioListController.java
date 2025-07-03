@@ -1,8 +1,10 @@
 package com.upscale.upscale.controller.portfolio;
 
 
+import com.upscale.upscale.dto.portfolio.FieldAttribute;
 import com.upscale.upscale.dto.portfolio.FieldData;
 import com.upscale.upscale.dto.portfolio.FieldRequest;
+import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
 import com.upscale.upscale.service.portfolio.FieldService;
@@ -76,7 +78,7 @@ public class PortfolioListController {
     }
 
     @GetMapping("/list/{portfolio-id}")
-    public ResponseEntity<?> getPortfolioList(HttpServletRequest request, @PathVariable("portfolio-id") String portfolioId) {
+    public ResponseEntity<?> getPortfolioList(HttpServletRequest request, @PathVariable("portfolio-id") String portfolioId, @RequestParam(value = "projectId", required = false) String projectId) {
         try {
             String email = tokenService.getEmailFromToken(request);
             HashMap<String,Object> response = new HashMap<>();
@@ -89,15 +91,25 @@ public class PortfolioListController {
             if(!data.isEmpty()){
                 response.put("Data", data);
                 log.info("Data found");
-
             }
             else{
                 response.put("Data", "No data found");
                 log.info("No Data found");
-
             }
 
             response.put("progress",portfolioService.getPortfolioTaskProgress(portfolioId));
+
+
+//            response.put("fieldWiseData", fieldService.getAllProjectsFieldWiseData(portfolioId));
+//            if (projectId != null && !projectId.isEmpty()) {
+//                Optional<Portfolio> portfolioOpt = portfolioService.getPortfolio(portfolioId);
+//                if (portfolioOpt.isPresent()) {
+//                    Portfolio portfolio = portfolioOpt.get();
+//                    HashMap<String, FieldAttribute> attributes = portfolio.getAttributes();
+//                    FieldAttribute attr = attributes.get(projectId);
+//                    response.put("fieldAttribute", attr); // could be null if not set
+//                }
+//            }
 
             return new ResponseEntity<>(response, HttpStatus.OK);
 
@@ -230,9 +242,8 @@ public class PortfolioListController {
                     return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
                 }
             }
-            else if(fieldName.equals("people")){
-
-                if(fieldService.createPeopleField(FieldRequest,portfolioId, fieldName)){
+            else if(fieldName.equals("text")){
+                if(fieldService.createTextField(FieldRequest,portfolioId, fieldName)){
                     response.put("status", "success");
                     response.put("message", "Field added successfully");
                     return new ResponseEntity<>(response, HttpStatus.OK);

@@ -5,23 +5,20 @@ import lombok.Data;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 @Data
-public class FieldData {
-
-    private String id = UUID.randomUUID().toString();
-    private String titleName;
-    private String fieldType;
-    private String description;
+public class FieldAttribute {
 
     private String givenProjectId;
 
-    //single-select or multi select
+    //single-select
+    String option;
+
+    // or multi-select
     private List<String> options = new ArrayList<>();
 
     //date
-    Date date;
+    private Date date;
 
     //people
     private List<String> peopleIds = new ArrayList<>();

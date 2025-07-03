@@ -1,14 +1,16 @@
 package com.upscale.upscale.controller.portfolio;
 
 
+import com.upscale.upscale.dto.portfolio.FieldAttribute;
 import com.upscale.upscale.service.portfolio.FieldService;
 import com.upscale.upscale.service.portfolio.PortfolioService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/portfolio/list")
@@ -22,5 +24,28 @@ public class PortfolioListFieldController {
     @Autowired
     private FieldService fieldService;
 
-    //@GetMapping("")
+    @PostMapping("/{portfolio-id}/add-data/{field-id}")
+    public ResponseEntity<?> addField(@PathVariable("portfolio-id") String portfolioId, @PathVariable("field-id") String fieldId, @RequestBody FieldAttribute fieldAttribute) {
+
+        try{
+
+            HashMap<String,Object> response = new HashMap<>();
+
+            if(fieldService.updateFieldsData(fieldId,fieldAttribute,portfolioId)){
+                response.put("status","success");
+                response.put("message","Successfully added field");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("status","failed");
+                response.put("message","Failed to add field");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
