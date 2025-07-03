@@ -49,6 +49,17 @@ public class PortfolioService {
             portfolio.setDefaultView(createPortFolio.getDefaultView());
             //portfolio.setTeammates(createPortFolio.getTeammates());
 
+            HashMap<String,String> fields = new HashMap<>();
+            fields.put("1","name");
+            fields.put("2","status");
+            fields.put("3","task progress");
+            fields.put("4","due date");
+            fields.put("5","priority");
+            fields.put("6","owner");
+
+            portfolio.setFields(fields);
+
+
             portfolioRepo.save(portfolio);
             log.info("Portfolio created successfully {}", createPortFolio.getPortfolioName());
             return true;
@@ -91,13 +102,24 @@ public class PortfolioService {
 
             Portfolio mainPortfolio = portfolioRepo.findById(portfolioId).get();
             List<String> portfolioIds = mainPortfolio.getProjectsIds();
-            portfolioIds.add(portfolioId);
+            portfolioIds.add(reqPortfolioId);
             mainPortfolio.setProjectsIds(portfolioIds);
             save(mainPortfolio);
 
             return mainPortfolio.getPortfolioName();
         }
         return null;
+    }
+
+    public HashMap<String, Object> getBasicInfo(String portfolioId) {
+        HashMap<String, Object> basicInfo = new HashMap<>();
+        Portfolio portfolio = portfolioRepo.findById(portfolioId).get();
+        basicInfo.put("id", portfolio.getId());
+        basicInfo.put("name", portfolio.getPortfolioName());
+        basicInfo.put("fields", portfolio.getFields());
+
+        return basicInfo;
+
     }
 
     public Map<String, Object> getPortfolioTaskProgress(String portfolioId) {
@@ -119,53 +141,86 @@ public class PortfolioService {
             seenProjectIds.add(projectId);
 
             Project project = projectService.getProject(projectId);
-            if (project == null) continue;
 
-            int totalTasks = 0;
-            int completedTasks = 0;
-
-            for (Section section : project.getSection()) {
-                for (Task task : section.getTasks()) {
-                    totalTasks++;
-                    if (task.isCompleted()) {
-                        completedTasks++;
-                    }
-                }
+            Optional<Portfolio> portfolio1Opt = portfolioRepo.findById(projectId);
+            Portfolio portfolio1 = null;
+            if (portfolio1Opt.isPresent()) {
+                portfolio1 = portfolio1Opt.get();
             }
 
             Map<String, Object> projectProgress = new HashMap<>();
-            projectProgress.put("projectId", projectId);
-            projectProgress.put("projectName", project.getProjectName());
-            projectProgress.put("totalTasks", totalTasks);
-            projectProgress.put("completedTasks", completedTasks);
-            projectProgress.put("startDate", project.getStartDate());
-            projectProgress.put("endDate", project.getEndDate());
-            projectProgress.put("priority",project.getPortfolioPriority());
-            HashMap<String,String> projectOwner = new HashMap<>();
-            projectOwner.put("name", userService.getUser(project.getUserEmailid()).getFullName());
-            projectOwner.put("email", project.getUserEmailid());
 
-            projectProgress.put("projectOwner",projectOwner);
+            if (project != null){
+                int totalTasks = 0;
+                int completedTasks = 0;
 
-            Date startDate = project.getStartDate();
-            Date endDate = project.getEndDate();
+                for (Section section : project.getSection()) {
+                    for (Task task : section.getTasks()) {
+                        totalTasks++;
+                        if (task.isCompleted()) {
+                            completedTasks++;
+                        }
+                    }
+                }
 
+                projectProgress.put("projectId", projectId);
+                projectProgress.put("projectName", project.getProjectName());
+                projectProgress.put("totalTasks", totalTasks);
+                projectProgress.put("completedTasks", completedTasks);
+                projectProgress.put("startDate", project.getStartDate());
+                projectProgress.put("endDate", project.getEndDate());
+                projectProgress.put("priority",project.getPortfolioPriority());
+                HashMap<String,String> projectOwner = new HashMap<>();
+                projectOwner.put("name", userService.getUser(project.getUserEmailid()).getFullName());
+                projectOwner.put("email", project.getUserEmailid());
 
-            LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            LocalDate currentDate = LocalDate.now();
+                projectProgress.put("projectOwner",projectOwner);
 
-            String status;
-            if ((currentDate.isEqual(startLocalDate) || currentDate.isAfter(startLocalDate)) &&
-                    (currentDate.isEqual(endLocalDate) || currentDate.isBefore(endLocalDate))) {
-                status = "On Track";
-            } else {
-                status = "No Recent Update";
+                Date startDate = project.getStartDate();
+                Date endDate = project.getEndDate();
+
+                LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                LocalDate currentDate = LocalDate.now();
+
+                String status;
+                if ((currentDate.isEqual(startLocalDate) || currentDate.isAfter(startLocalDate)) &&
+                        (currentDate.isEqual(endLocalDate) || currentDate.isBefore(endLocalDate))) {
+                    status = "On Track";
+                } else {
+                    status = "No Recent Update";
+                }
+
+                projectProgress.put("status", status);
+
+                projectProgress.put("progressPercent", totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0);
             }
+            else if(portfolio1 != null){
+                // int totalTasks = 0;
+                // int completedTasks = 0;
+                // If you want to count tasks for a portfolio, you need to implement logic here.
+                // For now, do NOT use project.getSection() because project is null.
 
-            projectProgress.put("status", status);
+                projectProgress.put("projectId", projectId);
+                projectProgress.put("projectName", portfolio1.getPortfolioName());
+                projectProgress.put("startDate", portfolio1.getStartDate());
+                projectProgress.put("endDate", portfolio1.getEndDate());
+                projectProgress.put("priority",portfolio1.getPriority());
 
-            projectProgress.put("progressPercent", totalTasks > 0 ? (completedTasks * 100.0 / totalTasks) : 0);
+                HashMap<String,String> projectOwner = new HashMap<>();
+                User user = userService.getUserById(portfolio1.getOwnerId());
+                if (user != null) {
+                    log.info("User {} has logged in", user.getFullName());
+                    projectOwner.put("name", user.getFullName());
+                    projectOwner.put("email", user.getEmailId());
+                }
+                log.info("Project owner {} has logged in", projectOwner);
+                projectProgress.put("projectOwner",projectOwner);
+                projectProgress.put("status", "No Recent Update");
+            } else {
+                // If neither project nor portfolio1 is found, skip this ID
+                continue;
+            }
 
             projectProgressList.add(projectProgress);
         }
@@ -284,6 +339,27 @@ public class PortfolioService {
         dashboard.put("portfolioStatusCount", portfolioStatusCount);
         dashboard.put("projectStatusList", projectStatusList);
         return dashboard;
+    }
+
+    public boolean updateTime(String projectId, Date startDate, Date endDate) {
+        // Try as Project first
+        Project project = projectService.getProject(projectId);
+        if (project != null) {
+            project.setStartDate(startDate);
+            project.setEndDate(endDate);
+            projectService.save(project);
+            return true;
+        }
+        // Try as Portfolio
+        Optional<Portfolio> portfolioOpt = portfolioRepo.findById(projectId);
+        if (portfolioOpt.isPresent()) {
+            Portfolio portfolio = portfolioOpt.get();
+            portfolio.setStartDate(startDate);
+            portfolio.setEndDate(endDate);
+            save(portfolio);
+            return true;
+        }
+        return false;
     }
 
 }

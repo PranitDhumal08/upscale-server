@@ -1,8 +1,11 @@
 package com.upscale.upscale.controller.portfolio;
 
 
+import com.upscale.upscale.dto.portfolio.FieldData;
+import com.upscale.upscale.dto.portfolio.FieldRequest;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
+import com.upscale.upscale.service.portfolio.FieldService;
 import com.upscale.upscale.service.portfolio.PortfolioService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -11,9 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.text.SimpleDateFormat;
 
 @RestController
 @RequestMapping("/api/portfolio")
@@ -79,6 +81,9 @@ public class PortfolioListController {
             String email = tokenService.getEmailFromToken(request);
             HashMap<String,Object> response = new HashMap<>();
 
+            response.put("fields", fieldService.getFieldsData(portfolioId));
+            response.put("basicInfo", portfolioService.getBasicInfo(portfolioId));
+
             HashMap<String, List<String>> data = userService.getProjects(email);
 
             if(!data.isEmpty()){
@@ -128,4 +133,140 @@ public class PortfolioListController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @PutMapping("/set-time/{portfolio-id}/{project-id}")
+    public ResponseEntity<?> setTime(@PathVariable("portfolio-id") String portfolioId, @PathVariable("project-id") String projectId, @RequestBody HashMap<String,Object> map) {
+        try {
+            Object startDateObj = map.get("startDate");
+            Object endDateObj = map.get("endDate");
+            Date startDate = null;
+            Date endDate = null;
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+            if (startDateObj instanceof String) {
+                startDate = isoFormat.parse((String) startDateObj);
+            } else if (startDateObj instanceof Date) {
+                startDate = (Date) startDateObj;
+            }
+            if (endDateObj instanceof String) {
+                endDate = isoFormat.parse((String) endDateObj);
+            } else if (endDateObj instanceof Date) {
+                endDate = (Date) endDateObj;
+            }
+            boolean updated = portfolioService.updateTime(projectId, startDate, endDate);
+            HashMap<String, Object> response = new HashMap<>();
+            if (updated) {
+                response.put("status", "success");
+                response.put("message", "Time updated successfully");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("status", "error");
+                response.put("message", "Project or Portfolio not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Autowired
+    private FieldService fieldService;
+
+    @PostMapping("/add-field/{portfolio-id}/{field-name}")
+    public ResponseEntity<?> addField(@PathVariable("portfolio-id") String portfolioId, @PathVariable("field-name") String fieldName, @RequestBody FieldRequest FieldRequest) {
+        try {
+
+
+            HashMap<String,Object> response = new HashMap<>();
+
+            if(fieldName.equals("single-select")){
+                if(fieldService.createSingleSelectField(FieldRequest,portfolioId, fieldName)){
+                    response.put("status", "success");
+                    response.put("message", "Field added successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }else{
+                    response.put("status", "error");
+                    response.put("message", "Field added failed");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+
+            else if(fieldName.equals("multi-select")){
+
+                if(fieldService.createMultiSelectField(FieldRequest,portfolioId, fieldName)){
+                    response.put("status", "success");
+                    response.put("message", "Field added successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                else{
+                    response.put("status", "error");
+                    response.put("message", "Field added failed");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+            else if(fieldName.equals("date")){
+
+                if(fieldService.createDateField(FieldRequest,portfolioId, fieldName)){
+                    response.put("status", "success");
+                    response.put("message", "Field added successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                else{
+                    response.put("status", "error");
+                    response.put("message", "Field added failed");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+            else if(fieldName.equals("people")){
+
+                if(fieldService.createPeopleField(FieldRequest,portfolioId, fieldName)){
+                    response.put("status", "success");
+                    response.put("message", "Field added successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                else{
+                    response.put("status", "error");
+                    response.put("message", "Field added failed");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+            else if(fieldName.equals("people")){
+
+                if(fieldService.createPeopleField(FieldRequest,portfolioId, fieldName)){
+                    response.put("status", "success");
+                    response.put("message", "Field added successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                else{
+                    response.put("status", "error");
+                    response.put("message", "Field added failed");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+            else if(fieldName.equals("number")){
+
+                if(fieldService.createNumberField(FieldRequest,portfolioId, fieldName)){
+                    response.put("status", "success");
+                    response.put("message", "Field added successfully");
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                else{
+                    response.put("status", "error");
+                    response.put("message", "Field added failed");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+            else{
+                response.put("status", "error");
+                response.put("message", "check field type");
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
 }

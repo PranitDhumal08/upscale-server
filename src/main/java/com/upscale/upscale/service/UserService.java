@@ -76,6 +76,8 @@ public class UserService {
         return userRepo.findByEmailId(emailId);
     }
 
+
+
     public User getUserDetails(String emailId, UserCreate userCreate){
 
         User user = getUser(emailId);

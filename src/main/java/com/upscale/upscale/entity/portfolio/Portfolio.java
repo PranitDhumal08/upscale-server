@@ -5,6 +5,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 @Data
@@ -21,5 +23,10 @@ public class Portfolio {
     private List<String> projectsIds = new ArrayList<>();
 
     String priority;
+
+    Date startDate;
+    Date endDate;
+
+    HashMap<String,String> fields = new HashMap<>();
 
 }
