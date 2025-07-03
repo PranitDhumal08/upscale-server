@@ -21,7 +21,7 @@ public class FieldData {
     private List<String> options = new ArrayList<>();
 
     //date
-    Date date;
+    private Date date;
 
     //people
     private List<String> peopleIds = new ArrayList<>();
