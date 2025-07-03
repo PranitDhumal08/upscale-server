@@ -39,17 +39,24 @@ public class FieldService {
        fieldsRepo.save(fields);
     }
 
-    public boolean addFieldNameInPortfolio(String id, String titleName, String projectId) {
+    public boolean addFieldNameInPortfolio(String id, String fieldName, String projectId) {
+
         Project project = projectService.getProject(projectId);
+
         if(project != null){
+
             //project.
         }
+
         Optional<Portfolio> portfolio = portfolioService.getPortfolio(projectId);
+
         if(portfolio.isPresent()){
             Portfolio portfolioEntity = portfolio.get();
+
             HashMap<String, String> fields = portfolioEntity.getFields();
+
             if(!fields.containsKey(id)){
-                fields.put(id, titleName);
+                fields.put(id, fieldName);
                 portfolioEntity.setFields(fields);
                 portfolioService.save(portfolioEntity);
                 return true;
@@ -63,32 +70,41 @@ public class FieldService {
     public boolean createSingleSelectField(FieldRequest fieldRequest, String projectId, String fieldName) {
         Fields newField = new Fields();
         newField.setProjectId(projectId);
+
         FieldData newData = new FieldData();
         newData.setId(UUID.randomUUID().toString());
+
         if (fieldRequest.getTitleName() == null || fieldRequest.getTitleName().isEmpty()) return false;
         newData.setTitleName(fieldRequest.getTitleName());
+
         if (fieldRequest.getDescription() != null && !fieldRequest.getDescription().isEmpty()) {
             newData.setDescription(fieldRequest.getDescription());
         }
+
         newData.setFieldType(fieldName);
+
         if (fieldRequest.getOptions() == null || fieldRequest.getOptions().isEmpty()) {
             log.error("New options not set to {}", fieldName);
             return false;
         }
         newData.setOptions(fieldRequest.getOptions());
+
         List<FieldData> fields = new ArrayList<>();
         fields.add(newData);
         newField.setFields(fields);
+
         fieldsRepo.save(newField);
+
+        // fix this - use findAll or enforce uniqueness
         List<Fields> fieldDataList = fieldsRepo.findAllByProjectId(projectId);
         for (Fields fieldData : fieldDataList) {
-            if (!fieldData.getFields().isEmpty()) {
-                addFieldNameInPortfolio(fieldData.getId(), fieldData.getFields().get(0).getTitleName(), projectId);
-            }
+            addFieldNameInPortfolio(fieldData.getId(), fieldName, projectId);
         }
-        if (!fieldDataList.isEmpty() && !fieldDataList.get(0).getFields().isEmpty()) {
-            addFieldNameInPortfolio(fieldDataList.get(0).getId(), fieldDataList.get(0).getFields().get(0).getTitleName(), projectId);
+
+        if (!fieldDataList.isEmpty()) {
+            addFieldNameInPortfolio(fieldDataList.get(0).getId(), fieldName, projectId);
         }
+
         return true;
     }
 
@@ -96,32 +112,40 @@ public class FieldService {
     public boolean createMultiSelectField(FieldRequest fieldRequest, String projectId, String fieldName) {
         Fields newField = new Fields();
         newField.setProjectId(projectId);
+
         FieldData newData = new FieldData();
         newData.setId(UUID.randomUUID().toString());
+
         if (fieldRequest.getTitleName() == null || fieldRequest.getTitleName().isEmpty()) {
             log.error("Title name is missing");
             return false;
         }
         newData.setTitleName(fieldRequest.getTitleName());
+
         if (fieldRequest.getDescription() != null && !fieldRequest.getDescription().isEmpty()) {
             newData.setDescription(fieldRequest.getDescription());
         }
+
         newData.setFieldType(fieldName);
+
         if (fieldRequest.getOptions() == null || fieldRequest.getOptions().isEmpty()) {
             log.error("Options not provided for {}", fieldName);
             return false;
         }
         newData.setOptions(fieldRequest.getOptions());
+
         List<FieldData> fields = new ArrayList<>();
         fields.add(newData);
         newField.setFields(fields);
+
         fieldsRepo.save(newField);
+
+        // Use findAllByProjectId in case of multiple documents for same projectId
         List<Fields> fieldDataList = fieldsRepo.findAllByProjectId(projectId);
         for (Fields fieldData : fieldDataList) {
-            if (!fieldData.getFields().isEmpty()) {
-                addFieldNameInPortfolio(fieldData.getId(), fieldData.getFields().get(0).getTitleName(), projectId);
-            }
+            addFieldNameInPortfolio(fieldData.getId(), fieldName, projectId);
         }
+
         return true;
     }
 
@@ -129,17 +153,22 @@ public class FieldService {
     public boolean createDateField(FieldRequest fieldRequest, String projectId, String fieldName) {
         Fields newField = new Fields();
         newField.setProjectId(projectId);
+
         FieldData newData = new FieldData();
         newData.setId(UUID.randomUUID().toString());
+
         if (fieldRequest.getTitleName() == null || fieldRequest.getTitleName().isEmpty()) {
             log.error("Title name is missing");
             return false;
         }
         newData.setTitleName(fieldRequest.getTitleName());
+
         if (fieldRequest.getDescription() != null && !fieldRequest.getDescription().isEmpty()) {
             newData.setDescription(fieldRequest.getDescription());
         }
+
         newData.setFieldType(fieldName);
+
         if (fieldRequest.getDate() != null && !fieldRequest.getDate().toString().isEmpty()) {
             newData.setDate(fieldRequest.getDate());
             log.info("New date set to {}", fieldRequest.getDate());
@@ -147,16 +176,19 @@ public class FieldService {
             newData.setDate(null);
             log.warn("Date not provided, setting to null");
         }
+
         List<FieldData> fields = new ArrayList<>();
         fields.add(newData);
         newField.setFields(fields);
+
         fieldsRepo.save(newField);
+
+        // Use findAll to handle potential duplicates for same projectId
         List<Fields> fieldDataList = fieldsRepo.findAllByProjectId(projectId);
         for (Fields fieldData : fieldDataList) {
-            if (!fieldData.getFields().isEmpty()) {
-                addFieldNameInPortfolio(fieldData.getId(), fieldData.getFields().get(0).getTitleName(), projectId);
-            }
+            addFieldNameInPortfolio(fieldData.getId(), fieldName, projectId);
         }
+
         return true;
     }
 
@@ -164,32 +196,39 @@ public class FieldService {
     public boolean createPeopleField(FieldRequest fieldRequest, String projectId, String fieldName) {
         Fields newField = new Fields();
         newField.setProjectId(projectId);
+
         FieldData newData = new FieldData();
         newData.setId(UUID.randomUUID().toString());
+
         if (fieldRequest.getTitleName() == null || fieldRequest.getTitleName().isEmpty()) {
             log.error("Title name not provided");
             return false;
         }
         newData.setTitleName(fieldRequest.getTitleName());
+
         if (fieldRequest.getDescription() != null && !fieldRequest.getDescription().isEmpty()) {
             newData.setDescription(fieldRequest.getDescription());
         }
+
         newData.setFieldType(fieldName);
+
         if (fieldRequest.getPeopleIds() == null || fieldRequest.getPeopleIds().isEmpty()) {
             log.error("People IDs not provided");
             return false;
         }
         newData.setPeopleIds(fieldRequest.getPeopleIds());
+
         List<FieldData> fields = new ArrayList<>();
         fields.add(newData);
         newField.setFields(fields);
+
         fieldsRepo.save(newField);
+
         List<Fields> fieldDataList = fieldsRepo.findAllByProjectId(projectId);
         for (Fields fieldData : fieldDataList) {
-            if (!fieldData.getFields().isEmpty()) {
-                addFieldNameInPortfolio(fieldData.getId(), fieldData.getFields().get(0).getTitleName(), projectId);
-            }
+            addFieldNameInPortfolio(fieldData.getId(), fieldName, projectId);
         }
+
         log.info("New field set to {}", fieldName);
         return true;
     }
@@ -198,27 +237,33 @@ public class FieldService {
     public boolean createTextField(FieldRequest fieldRequest, String projectId, String fieldName) {
         Fields newField = new Fields();
         newField.setProjectId(projectId);
+
         FieldData newData = new FieldData();
         newData.setId(UUID.randomUUID().toString());
+
         if (fieldRequest.getTitleName() == null || fieldRequest.getTitleName().isEmpty()) {
             log.error("Title name not provided");
             return false;
         }
         newData.setTitleName(fieldRequest.getTitleName());
+
         if (fieldRequest.getDescription() != null && !fieldRequest.getDescription().isEmpty()) {
             newData.setDescription(fieldRequest.getDescription());
         }
+
         newData.setFieldType(fieldName);
+
         List<FieldData> fields = new ArrayList<>();
         fields.add(newData);
         newField.setFields(fields);
+
         fieldsRepo.save(newField);
+
         List<Fields> fieldDataList = fieldsRepo.findAllByProjectId(projectId);
         for (Fields fieldData : fieldDataList) {
-            if (!fieldData.getFields().isEmpty()) {
-                addFieldNameInPortfolio(fieldData.getId(), fieldData.getFields().get(0).getTitleName(), projectId);
-            }
+            addFieldNameInPortfolio(fieldData.getId(), fieldName, projectId);
         }
+
         log.info("New text field set to {}", fieldName);
         return true;
     }
@@ -227,37 +272,45 @@ public class FieldService {
     public boolean createNumberField(FieldRequest fieldRequest, String projectId, String fieldName) {
         Fields newField = new Fields();
         newField.setProjectId(projectId);
+
         FieldData newData = new FieldData();
         newData.setId(UUID.randomUUID().toString());
+
         if (fieldRequest.getTitleName() == null || fieldRequest.getTitleName().isEmpty()) {
             log.error("Title name not provided");
             return false;
         }
         newData.setTitleName(fieldRequest.getTitleName());
+
         if (fieldRequest.getDescription() != null && !fieldRequest.getDescription().isEmpty()) {
             newData.setDescription(fieldRequest.getDescription());
         }
+
         newData.setFieldType(fieldName);
+
         if (fieldRequest.getFormat() == null || fieldRequest.getFormat().isEmpty()) {
             log.error("Format not provided");
             return false;
         }
         newData.setFormat(fieldRequest.getFormat());
+
         if (fieldRequest.getDecimalsPlace() == -1) {
             log.error("Decimals place not set or invalid");
             return false;
         }
         newData.setDecimalsPlace(fieldRequest.getDecimalsPlace());
+
         List<FieldData> fields = new ArrayList<>();
         fields.add(newData);
         newField.setFields(fields);
+
         fieldsRepo.save(newField);
+
         List<Fields> fieldDataList = fieldsRepo.findAllByProjectId(projectId);
         for (Fields fieldData : fieldDataList) {
-            if (!fieldData.getFields().isEmpty()) {
-                addFieldNameInPortfolio(fieldData.getId(), fieldData.getFields().get(0).getTitleName(), projectId);
-            }
+            addFieldNameInPortfolio(fieldData.getId(), fieldName, projectId);
         }
+
         log.info("New number field set to {}", fieldName);
         return true;
     }
@@ -333,8 +386,9 @@ public class FieldService {
         return data;
     }
 
-    public FieldAttribute setFieldWiseAttributes(String fieldType, FieldAttribute input) {
-        FieldAttribute attr = new FieldAttribute();
+    public FieldAttribute setFieldWiseAttributes(String fieldType, FieldAttribute input, FieldAttribute existing) {
+        // Use existing object, or create new if not provided
+        FieldAttribute attr = existing != null ? existing : new FieldAttribute();
 
         switch (fieldType) {
             case "single-select":
@@ -356,10 +410,11 @@ public class FieldService {
                 attr.setFormat(input.getFormat());
                 attr.setDecimalsPlace(input.getDecimalsPlace());
                 break;
-            // add more cases as needed
+            // add more as needed
         }
         return attr;
     }
+
 
     public boolean updateFieldsData(String fieldId, FieldAttribute fieldAttribute, String portfolioId) {
         Optional<Fields> fieldsOpt = fieldsRepo.findById(fieldId);
@@ -377,12 +432,21 @@ public class FieldService {
         String projectId = fieldAttribute.getGivenProjectId();
         if (projectId == null) return false;
 
-        attributes.put(projectId, setFieldWiseAttributes(fieldDataList.get(0).getFieldType(), fieldAttribute));
+        // Get existing attribute for the project
+        FieldAttribute existingAttr = attributes.get(projectId);
+
+        // Merge the new data into the existing attribute
+        FieldAttribute updatedAttr = setFieldWiseAttributes(fieldDataList.get(0).getFieldType(), fieldAttribute, existingAttr);
+
+        // Put the merged result back
+        attributes.put(projectId, updatedAttr);
         portfolio.setAttributes(attributes);
         portfolioService.save(portfolio);
-        log.info("Field attribute set for project {}", projectId);
+
+        log.info("Field attribute updated for project {}", projectId);
         return true;
     }
+
 
     public HashMap<String, Object> getFieldWiseDataForProject(String portfolioId, String projectId) {
         HashMap<String, Object> result = new HashMap<>();

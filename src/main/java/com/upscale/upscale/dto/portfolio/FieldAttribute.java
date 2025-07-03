@@ -12,7 +12,7 @@ public class FieldAttribute {
     private String givenProjectId;
 
     //single-select
-    String option;
+    private String option;
 
     // or multi-select
     private List<String> options = new ArrayList<>();
