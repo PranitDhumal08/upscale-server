@@ -177,8 +177,8 @@ public class PortfolioService {
                 projectProgress.put("projectName", project.getProjectName());
                 projectProgress.put("totalTasks", totalTasks);
                 projectProgress.put("completedTasks", completedTasks);
-                projectProgress.put("startDate", project.getStartDate());
-                projectProgress.put("endDate", project.getEndDate());
+                if(project.getStartDate() != null) projectProgress.put("startDate", project.getStartDate());
+                if(project.getEndDate() != null) projectProgress.put("endDate", project.getEndDate());
                 projectProgress.put("priority",project.getPortfolioPriority());
                 HashMap<String,String> projectOwner = new HashMap<>();
                 User user = userService.getUser(project.getUserEmailid());
