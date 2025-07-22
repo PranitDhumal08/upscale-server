@@ -1,14 +1,19 @@
 package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.project.PeopleInvite;
+import com.upscale.upscale.entity.Workspace;
 import com.upscale.upscale.entity.project.People;
 import com.upscale.upscale.entity.project.Project;
+import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.PeopleRepo;
+import com.upscale.upscale.service.UserService;
+import com.upscale.upscale.service.Workspace.WorkspaceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
@@ -24,6 +29,12 @@ public class PeopleService {
     @Autowired
     private InboxService inboxService;
 
+    @Autowired
+    private WorkspaceService workspaceService;
+
+
+    @Autowired
+    private UserService userService;
 
     public void save(People people){
         peopleRepo.save(people);
@@ -35,10 +46,27 @@ public class PeopleService {
 
             List<String> projectName = new ArrayList<>();
 
+
+            Workspace workspace = workspaceService.getWorkspaceByUserEmailId(emailId);
+
+            List<String> members = workspace.getMembers();
+
+            User user = userService.getUser(peopleInvite.getReceiverEmailId());
+            if(user != null){
+                members.add(user.getId());
+
+                workspace.setMembers(members);
+                workspaceService.save(workspace);
+
+                log.info("User " + user.getId() + " has been saved");
+            }
+
             for(int i = 0; i < peopleInvite.getProjectId().size(); i++){
                 Project project = projectService.getProject(peopleInvite.getProjectId().get(i));
+
                 if (project != null) {
                     projectName.add(project.getProjectName());
+
                 } else {
                     log.warn("Project not found for ID: " + peopleInvite.getProjectId().get(i));
                 }

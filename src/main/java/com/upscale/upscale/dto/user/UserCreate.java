@@ -10,6 +10,5 @@ public class UserCreate {
     private String fullName;
     private String role;
     private String otp = "";
-    private List<String> workspaces;
     private List<String> asanaUsed;
 }

@@ -3,13 +3,16 @@ package com.upscale.upscale.service;
 import com.upscale.upscale.dto.user.LoginUser;
 import com.upscale.upscale.dto.user.UserCreate;
 import com.upscale.upscale.dto.user.UserProfileUpdate;
+import com.upscale.upscale.entity.Workspace;
 import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.UserRepo;
+import com.upscale.upscale.service.Workspace.WorkspaceService;
 import com.upscale.upscale.service.portfolio.PortfolioService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,10 @@ public class UserService {
 
     @Autowired
     private PortfolioService portfolioService;
+
+    @Autowired
+    @Lazy
+    private WorkspaceService workspaceService;
 
     private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
@@ -87,10 +94,15 @@ public class UserService {
         user.setRole(userCreate.getRole());
         user.setNewUser(false);
         user.setPassword(passwordEncoder.encode(userCreate.getPassword()));
-        user.setWorkspaces(userCreate.getWorkspaces());
+
         user.setOtp("");
 
-        return user;
+        save(user);
+
+        User user1 = userRepo.findByEmailId(emailId);
+
+        return user1;
+
     }
 
     public String getName(String emailId){
@@ -150,6 +162,14 @@ public class UserService {
                 }
             }
 
+            Workspace workspace = workspaceService.getWorkspace(user.getId());
+
+            if(workspace != null){
+                List<String> values = new ArrayList<>();
+                values.add(workspace.getName());
+                values.add("workspace");
+                map.put(workspace.getId(),values);
+            }
 
             return map;
         }

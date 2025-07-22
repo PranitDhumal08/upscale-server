@@ -1,8 +1,10 @@
 package com.upscale.upscale.controller;
 
 import com.upscale.upscale.dto.user.*;
+import com.upscale.upscale.entity.Workspace;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.service.*;
+import com.upscale.upscale.service.Workspace.WorkspaceService;
 import com.upscale.upscale.service.project.EmailService;
 import com.upscale.upscale.service.project.GoalService;
 import com.upscale.upscale.service.project.ProjectService;
@@ -36,6 +38,9 @@ public class UserController {
 
     @Autowired
     private ProjectService projectService;
+
+    @Autowired
+    private WorkspaceService workspaceService;
 
     @PostMapping("/login-user")
     public ResponseEntity<?> loginUser(@RequestBody LoginUser loginUser) {
@@ -187,11 +192,20 @@ public class UserController {
 
             User user = userService.getUserDetails(email, userCreate);
 
+            Workspace workspace = workspaceService.createWorkspace(user.getId());
+
+            user.setWorkspaces(workspace.getId());
+
             userService.save(user);
+
             log.info("User Updated: " + email + " successfully");
             HashMap<String, Object> response = new HashMap<>();
 
             response.put("message", "User created successfully");
+            response.put("workspace", workspace.getName());
+
+
+
             response.put("Name", userCreate.getFullName());
             response.put("email", email);
             response.put("token", tokenService.generateToken(email));

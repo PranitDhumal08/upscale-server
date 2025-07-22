@@ -21,11 +21,12 @@ public class User {
     private String fullName;
     private String password;
     private String role;
-    private List<String> workspaces;
+    private String workspaces; //workspace id
     private List<String> asanaUsed;
     private List<Inbox> inbox = new ArrayList<>();
     private List<Project> projects = new ArrayList<>();
     private List<String> teammates = new ArrayList<>();
+
    // private HashMap<String,Chat> chats = new HashMap<>();
     private String pronouns;
     private String jobTitle;
