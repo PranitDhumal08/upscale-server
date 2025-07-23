@@ -6,16 +6,22 @@ import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
 import com.upscale.upscale.service.Workspace.CuratedWork;
 import com.upscale.upscale.service.Workspace.WorkspaceService;
+import com.upscale.upscale.service.project.ProjectService;
+import com.upscale.upscale.service.project.TaskService;
+import com.upscale.upscale.service.portfolio.PortfolioService;
+import com.upscale.upscale.entity.project.Project;
+import com.upscale.upscale.entity.project.Section;
+import com.upscale.upscale.entity.project.Task;
+import com.upscale.upscale.entity.portfolio.Portfolio;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/workspace")
@@ -31,6 +37,15 @@ public class WorkspaceController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ProjectService projectService;
+
+    @Autowired
+    private TaskService taskService;
+
+    @Autowired
+    private PortfolioService portfolioService;
 
     @GetMapping("/get-overview")
     public ResponseEntity<?> getWorkspaceOverview(HttpServletRequest request) {
@@ -336,4 +351,81 @@ public class WorkspaceController {
         }
 
     }
+
+    @GetMapping("/calendar-tasks")
+    public ResponseEntity<?> getWorkspaceCalendarTasks(
+            HttpServletRequest request,
+            @RequestParam(value = "start", required = false) String start,
+            @RequestParam(value = "end", required = false) String end
+    ) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            User user = userService.getUser(emailId);
+
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (user == null) {
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            Workspace workspace = workspaceService.getWorkspace(user.getId());
+            if (workspace == null) {
+                response.put("message", "Workspace not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            // Calendar data structure: date -> list of tasks
+            HashMap<String, List<HashMap<String, Object>>> calendar = new HashMap<>();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+
+            // Parse date range if provided
+            Date startDate = null, endDate = null;
+            try {
+                if (start != null && !start.isEmpty()) {
+                    startDate = dateFormat.parse(start);
+                }
+                if (end != null && !end.isEmpty()) {
+                    endDate = dateFormat.parse(end);
+                }
+            } catch (Exception e) {
+                log.warn("Invalid date format provided: start={}, end={}", start, end);
+            }
+
+            // Only get tasks from projects directly referenced in CuratedWorkData
+            HashMap<String, List<CuratedWork>> curatedWork = workspace.getCuratedWorkData();
+            if (curatedWork != null) {
+                for (List<CuratedWork> workList : curatedWork.values()) {
+                    for (CuratedWork work : workList) {
+                        if (work.getProjectId() != null) {
+                            Project project = projectService.getProject(work.getProjectId());
+                            if (project != null && project.getSection() != null) {
+                                for (Section section : project.getSection()) {
+                                    if (section.getTasks() != null) {
+                                        for (Task task : section.getTasks()) {
+                                            workspaceService.addTaskToCalendar(calendar, task, project, "workspace", dateFormat, startDate, endDate);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            response.put("message", "Calendar tasks retrieved successfully");
+            response.put("calendar", calendar);
+            response.put("workspaceName", workspace.getName());
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
+        } catch (Exception e) {
+            log.error("Error retrieving workspace calendar tasks: ", e);
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An internal error occurred while retrieving calendar tasks");
+            errorResponse.put("error", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }

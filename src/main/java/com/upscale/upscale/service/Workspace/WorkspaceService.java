@@ -4,6 +4,7 @@ package com.upscale.upscale.service.Workspace;
 import com.upscale.upscale.entity.Workspace;
 import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.Project;
+import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.WorkspaceRepo;
 import com.upscale.upscale.service.UserService;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Service
@@ -175,5 +177,65 @@ public class WorkspaceService {
         HashMap<String, Object> res = new HashMap<>();
         res.put("members", projectsToMembersMap);
         return res;
+    }
+
+    public void addTaskToCalendar(
+            HashMap<String, List<HashMap<String, Object>>> calendar,
+            Task task,
+            Project project,
+            String source,
+            SimpleDateFormat dateFormat,
+            Date startDate,
+            Date endDate
+    ) {
+        try {
+            // Determine the task date (prefer startDate, fallback to date)
+            Date taskDate = task.getStartDate() != null ? task.getStartDate() : task.getDate();
+            if (taskDate == null) return;
+
+            // Filter by date range if provided
+            if (startDate != null && taskDate.before(startDate)) return;
+            if (endDate != null && taskDate.after(endDate)) return;
+
+            String dateKey = dateFormat.format(taskDate);
+
+            // Build task information
+            HashMap<String, Object> taskInfo = new HashMap<>();
+            taskInfo.put("id", task.getId());
+            taskInfo.put("taskName", task.getTaskName());
+            taskInfo.put("description", task.getDescription());
+            taskInfo.put("priority", task.getPriority());
+            taskInfo.put("status", task.getStatus());
+            taskInfo.put("completed", task.isCompleted());
+            taskInfo.put("startDate", task.getStartDate());
+            taskInfo.put("endDate", task.getEndDate());
+            taskInfo.put("date", task.getDate());
+            taskInfo.put("source", source); // "project" or "portfolio"
+            taskInfo.put("projectId", project.getId());
+            taskInfo.put("projectName", project.getProjectName());
+
+            // Get assignee names
+            List<String> assigneeNames = new ArrayList<>();
+            if (task.getAssignId() != null) {
+                for (String userId : task.getAssignId()) {
+                    try {
+                        User assignee = userService.getUserById(userId);
+                        String name = (assignee != null && assignee.getFullName() != null)
+                                ? assignee.getFullName() : userId;
+                        assigneeNames.add(name);
+                    } catch (Exception e) {
+                        log.warn("Could not find user for id: {}", userId);
+                        assigneeNames.add(userId);
+                    }
+                }
+            }
+            taskInfo.put("assignees", assigneeNames);
+
+            // Add to calendar
+            calendar.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(taskInfo);
+
+        } catch (Exception e) {
+            log.error("Error adding task to calendar: ", e);
+        }
     }
 }
