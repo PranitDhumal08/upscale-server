@@ -121,4 +121,59 @@ public class WorkspaceService {
 
         return null;
     }
+
+    public HashMap<String, Object> getAllwork(String userId) {
+        Workspace workspace = getWorkspace(userId);
+
+        HashMap<String, List<HashMap<String, String>>> projectsToMembersMap = new HashMap<>();
+
+        if (workspace != null) {
+            HashMap<String, List<CuratedWork>> curatedWorkHashMap = workspace.getCuratedWorkData();
+
+            for (List<CuratedWork> curatedWorkList : curatedWorkHashMap.values()) {
+                for (CuratedWork curatedWork : curatedWorkList) {
+                    String projectName = curatedWork.getProjectName();
+                    String projectId = curatedWork.getProjectId();
+
+
+                    if (projectsToMembersMap.containsKey(projectName)) {
+                        continue;
+                    }
+
+                    Project project = projectService.getProject(projectId);
+                    Optional<Portfolio> portfolioOpt = portfolioService.getPortfolio(projectId);
+
+                    List<String> teamMemberIds = new ArrayList<>();
+
+                    if (portfolioOpt.isPresent()) {
+                        teamMemberIds = portfolioOpt.get().getTeammates();
+                    } else if (project != null) {
+                        teamMemberIds = project.getTeammates();
+                    }
+
+
+                    List<HashMap<String, String>> teamMembersInfoList = new ArrayList<>();
+                    if (teamMemberIds != null && !teamMemberIds.isEmpty()) {
+                        for (String teamMemberId : teamMemberIds) {
+                            User user = userService.getUserById(teamMemberId);
+                            if (user != null) {
+                                HashMap<String, String> teamMemberInfo = new HashMap<>();
+                                teamMemberInfo.put("fullName", user.getFullName());
+                                teamMemberInfo.put("emailId", user.getEmailId());
+                                teamMemberInfo.put("jobTitle", user.getJobTitle());
+
+                                //System.out.println(teamMemberInfo);
+                                teamMembersInfoList.add(teamMemberInfo);
+                            }
+                        }
+                    }
+                    projectsToMembersMap.put(projectName, teamMembersInfoList);
+                }
+            }
+        }
+
+        HashMap<String, Object> res = new HashMap<>();
+        res.put("members", projectsToMembersMap);
+        return res;
+    }
 }

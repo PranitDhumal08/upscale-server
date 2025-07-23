@@ -62,7 +62,7 @@ public class WorkspaceController {
                     members.add(member);
                 }
                 response.put("members", members);
-                response.put("currentWork",workspace.getCuratedWorkData());
+                response.put("curatedWork",workspace.getCuratedWorkData());
                 return new ResponseEntity<>(response, HttpStatus.OK);
             }
             else{
@@ -302,4 +302,38 @@ public class WorkspaceController {
         }
     }
 
+    @GetMapping("/get-all-work")
+    public ResponseEntity<?> getAllWork(HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            User user = userService.getUser(emailId);
+
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (user == null) {
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            HashMap<String, Object> dataMap = workspaceService.getAllwork(user.getId());
+
+            if (dataMap == null || ((HashMap)dataMap.get("members")).isEmpty()) {
+                response.put("message", "Workspace not found or is empty");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            response.put("message", "Workspace found");
+            response.put("data", dataMap);
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An internal error occurred.");
+            errorResponse.put("error", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+    }
 }

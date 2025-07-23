@@ -2,12 +2,14 @@ package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.project.PeopleInvite;
 import com.upscale.upscale.entity.Workspace;
+import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.People;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.PeopleRepo;
 import com.upscale.upscale.service.UserService;
 import com.upscale.upscale.service.Workspace.WorkspaceService;
+import com.upscale.upscale.service.portfolio.PortfolioService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -35,6 +38,8 @@ public class PeopleService {
 
     @Autowired
     private UserService userService;
+    @Autowired
+    private PortfolioService portfolioService;
 
     public void save(People people){
         peopleRepo.save(people);
@@ -63,18 +68,27 @@ public class PeopleService {
 
             for(int i = 0; i < peopleInvite.getProjectId().size(); i++){
                 Project project = projectService.getProject(peopleInvite.getProjectId().get(i));
-
+                Optional<Portfolio> portfolio = portfolioService.getPortfolio(peopleInvite.getProjectId().get(i));
                 if (project != null) {
-                    projectName.add(project.getProjectName());
+                   project.getTeammates().add(user.getId());
+                   log.info("Teammate " + user.getId() + " has been saved");
 
+
+                } else if (portfolio.isPresent()) {
+                    portfolio.get().getTeammates().add(user.getId());
+                    log.info("Teammate " + user.getId() + " has been saved");
                 } else {
                     log.warn("Project not found for ID: " + peopleInvite.getProjectId().get(i));
                 }
+
+                if(project != null) projectService.save(project);
+                else if(portfolio.isPresent()) portfolioService.save(portfolio.get());
             }
 
             people.setReceveriedEmailId(peopleInvite.getReceiverEmailId());
             people.setProjectId(peopleInvite.getProjectId());
             people.setProjectsName(projectName);
+
 
             save(people);
 
