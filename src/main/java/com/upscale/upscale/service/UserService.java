@@ -3,7 +3,7 @@ package com.upscale.upscale.service;
 import com.upscale.upscale.dto.user.LoginUser;
 import com.upscale.upscale.dto.user.UserCreate;
 import com.upscale.upscale.dto.user.UserProfileUpdate;
-import com.upscale.upscale.entity.Workspace;
+import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.user.User;

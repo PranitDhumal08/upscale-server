@@ -1,4 +1,4 @@
-package com.upscale.upscale.entity;
+package com.upscale.upscale.entity.workspace;
 
 import com.upscale.upscale.service.Workspace.CuratedWork;
 import lombok.Data;
@@ -19,6 +19,8 @@ public class Workspace {
     private String name;
     private String description;
     private List<String> members = new ArrayList<>();
+
+    private List<String> knowledgeId = new ArrayList<>();
 
 
     private HashMap<String, List<CuratedWork>> CuratedWorkData = new HashMap<>(); //current workspace

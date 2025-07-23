@@ -1,6 +1,7 @@
 package com.upscale.upscale.controller;
 
-import com.upscale.upscale.entity.Workspace;
+import com.upscale.upscale.dto.workspace.Entry;
+import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
@@ -12,7 +13,7 @@ import com.upscale.upscale.service.portfolio.PortfolioService;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Section;
 import com.upscale.upscale.entity.project.Task;
-import com.upscale.upscale.entity.portfolio.Portfolio;
+
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -68,11 +69,12 @@ public class WorkspaceController {
                 List<String[]> members = new ArrayList<>();
 
                 for(int i=0;i<workspace.getMembers().size();i++) {
-                    String[] member = new String[2];
+                    String[] member = new String[3];
                     User userMember = userService.getUserById(workspace.getMembers().get(i));
 
                     member[0] = userMember.getFullName();
                     member[1] = userMember.getEmailId();
+                    member[2] = userMember.getJobTitle();
 
                     members.add(member);
                 }
@@ -423,6 +425,78 @@ public class WorkspaceController {
             log.error("Error retrieving workspace calendar tasks: ", e);
             HashMap<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("message", "An internal error occurred while retrieving calendar tasks");
+            errorResponse.put("error", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/add-knowledge-entry")
+    public ResponseEntity<?> addKnowledgeEntry(HttpServletRequest request, @RequestBody Entry entry){
+
+        String emailId = tokenService.getEmailFromToken(request);
+
+        try {
+            User user = userService.getUser(emailId);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (user != null) {
+
+                if(entry != null) {
+
+                    if(workspaceService.createKnowledgeEntry(user.getId(), entry)) {
+                        response.put("message", "Entry added successfully");
+                        return new ResponseEntity<>(response, HttpStatus.OK);
+                    }else{
+                        response.put("message", "Workspace not found");
+                        log.error("Not Stored");
+                    }
+
+                }
+                else{
+                    response.put("message", "User not found");
+                    return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+                }
+
+            }else{
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An internal error occurred.");
+            errorResponse.put("error", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return null;
+    }
+
+    @GetMapping("/get-Knowledge-entry")
+    public ResponseEntity<?> getKnowledgeEntry(HttpServletRequest request) {
+
+        String emailId = tokenService.getEmailFromToken(request);
+
+        try{
+            User user = userService.getUser(emailId);
+            HashMap<String, Object> response = new HashMap<>();
+
+            HashMap<String,String> knowledgeEntry = workspaceService.getAllKnowledgeEntries(user.getId());
+
+            if(knowledgeEntry != null) {
+                    response.put("message", "Knowledge entry retrieved successfully");
+                    response.put("knowledgeEntry", knowledgeEntry);
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+
+            }
+        }
+        catch (Exception e) {
+            log.error(e.getMessage());
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An internal error occurred.");
             errorResponse.put("error", e.getMessage());
             return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
         }

@@ -1,7 +1,7 @@
 package com.upscale.upscale.controller;
 
 import com.upscale.upscale.dto.user.*;
-import com.upscale.upscale.entity.Workspace;
+import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.service.*;
 import com.upscale.upscale.service.Workspace.WorkspaceService;

@@ -1,11 +1,14 @@
 package com.upscale.upscale.service.Workspace;
 
 
-import com.upscale.upscale.entity.Workspace;
+import com.upscale.upscale.dto.workspace.Entry;
+import com.upscale.upscale.entity.workspace.Knowledge;
+import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.user.User;
+import com.upscale.upscale.repository.KnowledgeRepo;
 import com.upscale.upscale.repository.WorkspaceRepo;
 import com.upscale.upscale.service.UserService;
 import com.upscale.upscale.service.portfolio.PortfolioService;
@@ -237,5 +240,61 @@ public class WorkspaceService {
         } catch (Exception e) {
             log.error("Error adding task to calendar: ", e);
         }
+    }
+
+    @Autowired
+    private KnowledgeRepo knowledgeRepo;
+
+    public boolean createKnowledgeEntry(String userId, Entry entry) {
+        Workspace workspace = getWorkspace(userId);
+
+        if(workspace == null || entry == null) return false;
+
+        Knowledge knowledge = new Knowledge();
+
+        knowledge.setWorkspaceId(workspace.getId());
+        knowledge.setEntryName(entry.getEntryName());
+        knowledge.setEntryDescription(entry.getEntryDescription());
+
+        knowledgeRepo.save(knowledge);
+        log.info("Created knowledge entry: {}", entry);
+
+        Knowledge knowledge1 = knowledgeRepo.findByWorkspaceId(workspace.getId());
+
+        LinkedList<String> knowlegeIds = new LinkedList<>(workspace.getKnowledgeId());
+
+        knowlegeIds.addFirst(knowledge1.getId());
+
+        workspace.setKnowledgeId(knowlegeIds);
+
+        save(workspace);
+
+        return true;
+
+    }
+
+    public HashMap<String,String> getAllKnowledgeEntries(String userId) {
+
+        Workspace workspace = getWorkspace(userId);
+        if(workspace == null) return null;
+
+        List<String> knowledgeIds = workspace.getKnowledgeId();
+        HashMap<String,String> knowledgeMap = new HashMap<>();
+        for(String knowledgeId : knowledgeIds) {
+
+            Optional<Knowledge> knowledge = knowledgeRepo.findById(knowledgeId);
+
+            if(knowledge.isPresent()) {
+                Knowledge knowledge1 = knowledge.get();
+                log.info("Found knowledge entry: {}", knowledge1);
+                knowledgeMap.put("id", knowledge1.getId());
+                knowledgeMap.put("entryName", knowledge1.getEntryName());
+                knowledgeMap.put("entryDescription", knowledge1.getEntryDescription());
+                knowledgeMap.put("projectId",knowledge1.getWorkspaceId());
+                knowledgeMap.put("workspaceName",workspace.getName());
+            }
+        }
+
+        return knowledgeMap;
     }
 }

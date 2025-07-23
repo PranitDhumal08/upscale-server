@@ -1,7 +1,7 @@
 package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.project.PeopleInvite;
-import com.upscale.upscale.entity.Workspace;
+import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.entity.portfolio.Portfolio;
 import com.upscale.upscale.entity.project.People;
 import com.upscale.upscale.entity.project.Project;
@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
