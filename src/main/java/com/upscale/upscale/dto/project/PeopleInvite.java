@@ -8,7 +8,7 @@ import java.util.List;
 @Data
 public class PeopleInvite {
 
-    private String receiverEmailId;
+    private List<String> receiverEmailId;
     private List<String> projectId = new ArrayList<>();
 
 }

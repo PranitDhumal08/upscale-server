@@ -55,43 +55,51 @@ public class PeopleService {
 
             List<String> members = workspace.getMembers();
 
-            User user = userService.getUser(peopleInvite.getReceiverEmailId());
-            if(user != null){
-                members.add(user.getId());
+            List<String> allMembers = peopleInvite.getReceiverEmailId();
 
-                workspace.setMembers(members);
-                workspaceService.save(workspace);
+            for(String userEmailId : allMembers){
+                User user = userService.getUser(userEmailId);
+                if(user != null){
 
-                log.info("User " + user.getId() + " has been saved");
-            }
+                    if(!members.contains(user.getId())){
+                        members.add(user.getId());
 
-            for(int i = 0; i < peopleInvite.getProjectId().size(); i++){
-                Project project = projectService.getProject(peopleInvite.getProjectId().get(i));
-                Optional<Portfolio> portfolio = portfolioService.getPortfolio(peopleInvite.getProjectId().get(i));
-                if (project != null) {
-                   project.getTeammates().add(user.getId());
-                   log.info("Teammate " + user.getId() + " has been saved");
+                        workspace.setMembers(members);
+                        workspaceService.save(workspace);
 
+                        log.info("User " + user.getId() + " has been saved");
+                    }
 
-                } else if (portfolio.isPresent()) {
-                    portfolio.get().getTeammates().add(user.getId());
-                    log.info("Teammate " + user.getId() + " has been saved");
-                } else {
-                    log.warn("Project not found for ID: " + peopleInvite.getProjectId().get(i));
                 }
 
-                if(project != null) projectService.save(project);
-                else if(portfolio.isPresent()) portfolioService.save(portfolio.get());
+                for(int i = 0; i < peopleInvite.getProjectId().size(); i++){
+                    Project project = projectService.getProject(peopleInvite.getProjectId().get(i));
+                    Optional<Portfolio> portfolio = portfolioService.getPortfolio(peopleInvite.getProjectId().get(i));
+                    if (project != null) {
+                        project.getTeammates().add(user.getId());
+                        log.info("Teammate " + user.getId() + " has been saved");
+
+
+                    } else if (portfolio.isPresent()) {
+                        portfolio.get().getTeammates().add(user.getId());
+                        log.info("Teammate " + user.getId() + " has been saved");
+                    } else {
+                        log.warn("Project not found for ID: " + peopleInvite.getProjectId().get(i));
+                    }
+
+                    if(project != null) projectService.save(project);
+                    else if(portfolio.isPresent()) portfolioService.save(portfolio.get());
+                }
+
+                people.setReceveriedEmailId(userEmailId);
+                people.setProjectId(peopleInvite.getProjectId());
+                people.setProjectsName(projectName);
+
+
+                save(people);
+
+                sendInvite(emailId, userEmailId, people);
             }
-
-            people.setReceveriedEmailId(peopleInvite.getReceiverEmailId());
-            people.setProjectId(peopleInvite.getProjectId());
-            people.setProjectsName(projectName);
-
-
-            save(people);
-
-            sendInvite(emailId, peopleInvite.getReceiverEmailId(), people);
             return true;
         }
         return false;
