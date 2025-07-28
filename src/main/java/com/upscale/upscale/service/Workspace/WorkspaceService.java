@@ -74,38 +74,41 @@ public class WorkspaceService {
 
         HashMap<String,List<CuratedWork>> curatedWorkHashMap = workspace.getCuratedWorkData();
 
-        if(curatedWorkHashMap.containsKey(sectionName)) {
-
-            List<CuratedWork> curatedWorkList = curatedWorkHashMap.get(sectionName);
-
-            Project project = projectService.getProject(curatedWork.getProjectId());
-            Optional<Portfolio> portfolio = portfolioService.getPortfolio(curatedWork.getProjectId());
-            if(project != null){
-                curatedWork.setProjectName(project.getProjectName());
-            }
-            else if(portfolio != null && portfolio.get() != null) {
-                Portfolio portfolio1 = portfolio.get();
-                curatedWork.setProjectName(portfolio1.getPortfolioName());
-            }
-
-            for(CuratedWork curatedWorkData : curatedWorkList) {
-
-                if(curatedWork.getProjectId().equals(curatedWorkData.getProjectId())) {
-                    return false;
-                }
-            }
-
-            curatedWorkList.add(curatedWork);
-
-            curatedWorkHashMap.put(sectionName, curatedWorkList);
-
-            workspace.setCuratedWorkData(curatedWorkHashMap);
-            workspaceRepo.save(workspace);
-
-            return true;
+        // Only allow adding work to existing sections
+        if (!curatedWorkHashMap.containsKey(sectionName)) {
+            log.warn("Attempted to add work to non-existent section: {}", sectionName);
+            return false;
         }
 
-        return false;
+        List<CuratedWork> curatedWorkList = curatedWorkHashMap.get(sectionName);
+
+        Project project = projectService.getProject(curatedWork.getProjectId());
+        Optional<Portfolio> portfolio = portfolioService.getPortfolio(curatedWork.getProjectId());
+        if(project != null){
+            curatedWork.setProjectName(project.getProjectName());
+        }
+        else if(portfolio != null && portfolio.get() != null) {
+            Portfolio portfolio1 = portfolio.get();
+            curatedWork.setProjectName(portfolio1.getPortfolioName());
+        }
+
+        // Check if project already exists in this section
+        boolean projectExists = false;
+        for(CuratedWork curatedWorkData : curatedWorkList) {
+            if(curatedWork.getProjectId().equals(curatedWorkData.getProjectId())) {
+                projectExists = true;
+                log.warn("Project {} already exists in section {}", curatedWork.getProjectId(), sectionName);
+                break;
+            }
+        }
+
+        // Allow adding even if it exists (just log a warning)
+        curatedWorkList.add(curatedWork);
+        curatedWorkHashMap.put(sectionName, curatedWorkList);
+        workspace.setCuratedWorkData(curatedWorkHashMap);
+        workspaceRepo.save(workspace);
+
+        return true;
     }
 
     public HashMap<String,String> getMemberInfo(String userId){
@@ -246,55 +249,56 @@ public class WorkspaceService {
     private KnowledgeRepo knowledgeRepo;
 
     public boolean createKnowledgeEntry(String userId, Entry entry) {
-        Workspace workspace = getWorkspace(userId);
+        try {
+            Workspace workspace = getWorkspace(userId);
+            log.info("Creating knowledge entry for user: {}, workspace: {}", userId, workspace != null ? workspace.getId() : "null");
 
-        if(workspace == null || entry == null) return false;
+            if(workspace == null || entry == null) {
+                log.error("Workspace or entry is null. Workspace: {}, Entry: {}", workspace, entry);
+                return false;
+            }
 
-        Knowledge knowledge = new Knowledge();
+            Knowledge knowledge = new Knowledge();
+            knowledge.setWorkspaceId(workspace.getId());
+            knowledge.setEntryName(entry.getEntryName());
+            knowledge.setEntryDescription(entry.getEntryDescription());
 
-        knowledge.setWorkspaceId(workspace.getId());
-        knowledge.setEntryName(entry.getEntryName());
-        knowledge.setEntryDescription(entry.getEntryDescription());
+            Knowledge savedKnowledge = knowledgeRepo.save(knowledge);
+            log.info("Created knowledge entry with ID: {}", savedKnowledge.getId());
 
-        knowledgeRepo.save(knowledge);
-        log.info("Created knowledge entry: {}", entry);
-
-        Knowledge knowledge1 = knowledgeRepo.findByWorkspaceId(workspace.getId());
-
-        LinkedList<String> knowlegeIds = new LinkedList<>(workspace.getKnowledgeId());
-
-        knowlegeIds.addFirst(knowledge1.getId());
-
-        workspace.setKnowledgeId(knowlegeIds);
-
-        save(workspace);
-
-        return true;
-
+            // Use the saved knowledge entry directly
+            LinkedList<String> knowlegeIds = new LinkedList<>(workspace.getKnowledgeId());
+            knowlegeIds.addFirst(savedKnowledge.getId());
+            workspace.setKnowledgeId(knowlegeIds);
+            save(workspace);
+            log.info("Updated workspace with new knowledge entry. Total entries: {}", knowlegeIds.size());
+            return true;
+        } catch (Exception e) {
+            log.error("Error creating knowledge entry: ", e);
+            return false;
+        }
     }
 
-    public HashMap<String,String> getAllKnowledgeEntries(String userId) {
-
+    public List<HashMap<String, String>> getAllKnowledgeEntries(String userId) {
         Workspace workspace = getWorkspace(userId);
-        if(workspace == null) return null;
+        if (workspace == null) return null;
 
         List<String> knowledgeIds = workspace.getKnowledgeId();
-        HashMap<String,String> knowledgeMap = new HashMap<>();
-        for(String knowledgeId : knowledgeIds) {
-
+        List<HashMap<String, String>> knowledgeList = new ArrayList<>();
+        for (String knowledgeId : knowledgeIds) {
             Optional<Knowledge> knowledge = knowledgeRepo.findById(knowledgeId);
-
-            if(knowledge.isPresent()) {
+            if (knowledge.isPresent()) {
                 Knowledge knowledge1 = knowledge.get();
                 log.info("Found knowledge entry: {}", knowledge1);
+                HashMap<String, String> knowledgeMap = new HashMap<>();
                 knowledgeMap.put("id", knowledge1.getId());
                 knowledgeMap.put("entryName", knowledge1.getEntryName());
                 knowledgeMap.put("entryDescription", knowledge1.getEntryDescription());
-                knowledgeMap.put("projectId",knowledge1.getWorkspaceId());
-                knowledgeMap.put("workspaceName",workspace.getName());
+                knowledgeMap.put("projectId", knowledge1.getWorkspaceId());
+                knowledgeMap.put("workspaceName", workspace.getName());
+                knowledgeList.add(knowledgeMap);
             }
         }
-
-        return knowledgeMap;
+        return knowledgeList;
     }
 }

@@ -473,27 +473,20 @@ public class WorkspaceController {
 
     @GetMapping("/get-Knowledge-entry")
     public ResponseEntity<?> getKnowledgeEntry(HttpServletRequest request) {
-
         String emailId = tokenService.getEmailFromToken(request);
-
-        try{
+        try {
             User user = userService.getUser(emailId);
             HashMap<String, Object> response = new HashMap<>();
-
-            HashMap<String,String> knowledgeEntry = workspaceService.getAllKnowledgeEntries(user.getId());
-
-            if(knowledgeEntry != null) {
-                    response.put("message", "Knowledge entry retrieved successfully");
-                    response.put("knowledgeEntry", knowledgeEntry);
-                    return new ResponseEntity<>(response, HttpStatus.OK);
-            }
-            else{
+            List<HashMap<String, String>> knowledgeEntry = workspaceService.getAllKnowledgeEntries(user.getId());
+            if (knowledgeEntry != null) {
+                response.put("message", "Knowledge entry retrieved successfully");
+                response.put("knowledgeEntry", knowledgeEntry);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
                 response.put("message", "User not found");
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             log.error(e.getMessage());
             HashMap<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("message", "An internal error occurred.");
