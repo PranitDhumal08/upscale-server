@@ -301,4 +301,30 @@ public class WorkspaceService {
         }
         return knowledgeList;
     }
+
+    public boolean deleteKnowledgeEntry(String userId, String knowledgeId) {
+        Workspace workspace = getWorkspace(userId);
+
+        if(workspace != null) {
+
+            List<String> knowledgeIds = workspace.getKnowledgeId();
+
+            if(!knowledgeIds.isEmpty()) {
+                if(knowledgeIds.contains(knowledgeId)) {
+
+                    Knowledge knowledge = knowledgeRepo.findById(knowledgeId).get();
+
+                    if(knowledge != null) {
+                        knowledgeRepo.delete(knowledge);
+
+                        knowledgeIds.remove(knowledgeId);
+                        log.info("Deleted knowledge entry with ID: {}", knowledgeId);
+                        save(workspace);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 }

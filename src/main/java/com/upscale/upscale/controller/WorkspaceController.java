@@ -1,6 +1,7 @@
 package com.upscale.upscale.controller;
 
 import com.upscale.upscale.dto.workspace.Entry;
+import com.upscale.upscale.entity.workspace.Knowledge;
 import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.service.TokenService;
@@ -495,4 +496,35 @@ public class WorkspaceController {
         }
     }
 
+    @DeleteMapping("/delete-Knowledge/{entry-id}")
+    public ResponseEntity<?> deleteKnowledgeEntry(HttpServletRequest request, @PathVariable("entry-id") String entryId) {
+        String emailId = tokenService.getEmailFromToken(request);
+
+        try {
+            User user = userService.getUser(emailId);
+
+            HashMap<String, Object> response = new HashMap<>();
+            if(workspaceService.deleteKnowledgeEntry(user.getId(), entryId)) {
+
+                response.put("message", "Entry deleted successfully");
+                response.put("entryId", entryId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+
+            }
+            else{
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+
+            }
+
+
+
+        }catch (Exception e) {
+            log.error(e.getMessage());
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An internal error occurred.");
+            errorResponse.put("error", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
