@@ -87,7 +87,7 @@ public class TaskController {
             String email = tokenService.getEmailFromToken(request);
             HashMap<String, Object> response = new HashMap<>();
 
-            TaskData[] taskData = taskService.getAll(email);
+            TaskData[] taskData = taskService.getTaskDataByAssignId(email);
 
             if(taskData != null && taskData.length > 0) {
                 response.put("tasks", taskData);
@@ -109,7 +109,7 @@ public class TaskController {
         try {
             String email = tokenService.getEmailFromToken(request);
             HashMap<String, Object> response = new HashMap<>();
-            TaskData[] taskData = taskService.getAll(email);
+            TaskData[] taskData = taskService.getAssign(email);
             if(taskData != null && taskData.length > 0) {
                 response.put("tasks", taskData);
                 response.put("status", "success");
