@@ -13,7 +13,7 @@ import java.util.List;
 public class Task {
 
     @Id
-    private String id;
+    private String id; // MongoDB will auto-generate ObjectId as String
     private String createdId;
     private List<String> projectIds = new ArrayList<>();
     private String taskName;

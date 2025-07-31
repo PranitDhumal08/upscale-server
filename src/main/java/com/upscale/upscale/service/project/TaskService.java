@@ -39,7 +39,21 @@ public class TaskService {
     private ProjectService projectService;
 
     public Task save(Task task) {
-        return taskRepo.save(task);
+        // Ensure ID is generated if null (backup solution)
+        if (task.getId() == null) {
+            log.info("Task ID is null before saving, MongoDB will auto-generate it");
+        }
+        
+        Task savedTask = taskRepo.save(task);
+        
+        // Verify ID was generated
+        if (savedTask.getId() == null) {
+            log.error("CRITICAL: Task ID is still null after MongoDB save operation!");
+            throw new RuntimeException("Failed to generate Task ID - MongoDB configuration issue");
+        }
+        
+        log.info("Task successfully saved with ID: {}", savedTask.getId());
+        return savedTask;
     }
 
     public boolean setTask(TaskData taskData,String createdId,String email) {
@@ -99,6 +113,13 @@ public class TaskService {
 
         Task savedTask = save(task);
         log.info("Saved Task to DB: {}", savedTask);
+        log.info("Generated Task ID: {}", savedTask.getId());
+        
+        // Verify the task was saved with an ID
+        if (savedTask.getId() == null) {
+            log.error("ERROR: Task ID is null after saving! This indicates a MongoDB configuration issue.");
+            return false;
+        }
 
         // Add task to project sections if projectIds are provided
         if(taskData.getProjectIds() != null && !taskData.getProjectIds().isEmpty()){
@@ -167,6 +188,7 @@ public class TaskService {
 
         for(int i = 0; i < assignedTasks.size(); i++){
             taskData[i] = new TaskData();
+            taskData[i].setId(assignedTasks.get(i).getId()); // Add missing ID
             taskData[i].setTaskName(assignedTasks.get(i).getTaskName());
             taskData[i].setDate(assignedTasks.get(i).getDate());
             taskData[i].setStartDate(assignedTasks.get(i).getStartDate());
@@ -176,6 +198,7 @@ public class TaskService {
             taskData[i].setDescription(assignedTasks.get(i).getDescription());
             taskData[i].setPriority(assignedTasks.get(i).getPriority());
             taskData[i].setStatus(assignedTasks.get(i).getStatus());
+            taskData[i].setProjectIds(assignedTasks.get(i).getProjectIds()); // Add missing projectIds
 
         }
         return taskData;
@@ -184,6 +207,7 @@ public class TaskService {
     public TaskData[] getAll(String email) {
         User user = userLookupService.getUserByEmail(email);
         log.info("User ID: " + user.getId());
+        log.info("Getting all tasks for user: {}", email);
 
         // Get tasks assigned to me (including self-assigned tasks)
         List<Task> assignedTasks = getTasksByAssignId(user.getId());
@@ -212,6 +236,7 @@ public class TaskService {
         List<TaskData> taskDataList = new ArrayList<>();
 
         for (Task task : allTasks) {
+            log.info("Processing task with ID: {} and name: {}", task.getId(), task.getTaskName());
             TaskData taskData = new TaskData();
             taskData.setId(task.getId());
             taskData.setTaskName(task.getTaskName());
@@ -225,6 +250,7 @@ public class TaskService {
             taskData.setPriority(task.getPriority());
             taskData.setStatus(task.getStatus());
             taskDataList.add(taskData);
+            log.info("Added TaskData with ID: {}", taskData.getId());
         }
 
         return taskDataList.toArray(new TaskData[0]);
