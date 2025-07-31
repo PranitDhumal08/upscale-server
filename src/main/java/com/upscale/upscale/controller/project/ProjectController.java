@@ -137,19 +137,22 @@ public class ProjectController {
                 sectionMap.put("sectionName", section.getSectionName());
 
                 List<Task> enrichedTasks = new ArrayList<>();
-                for (Task task : section.getTasks()) {
-                    List<String> nameList = new ArrayList<>();
-                    for (String userId : task.getAssignId()) {
-                        try {
-                            User user = userService.getUserById(userId);
-                            nameList.add((user != null && user.getFullName() != null) ? user.getFullName() : userId);
-                        } catch (Exception e) {
-                            log.warn("Could not find user for id: {}", userId);
-                            nameList.add(userId);
+                for (String taskId : section.getTaskIds()) {
+                    Task task = taskService.getTask(taskId);
+                    if (task != null) {
+                        List<String> nameList = new ArrayList<>();
+                        for (String userId : task.getAssignId()) {
+                            try {
+                                User user = userService.getUserById(userId);
+                                nameList.add((user != null && user.getFullName() != null) ? user.getFullName() : userId);
+                            } catch (Exception e) {
+                                log.warn("Could not find user for id: {}", userId);
+                                nameList.add(userId);
+                            }
                         }
+                        task.setAssignId(nameList);
+                        enrichedTasks.add(task);
                     }
-                    task.setAssignId(nameList);
-                    enrichedTasks.add(task);
                 }
 
                 sectionMap.put("tasks", enrichedTasks);
@@ -411,30 +414,33 @@ public class ProjectController {
                 sectionMap.put("sectionName", section.getSectionName() != null ? section.getSectionName() : "Untitled section");
                 sectionMap.put("sectionId", section.getId());
                 List<Map<String, Object>> tasksList = new ArrayList<>();
-                if (section.getTasks() != null) {
-                    for (Task task : section.getTasks()) {
-                        Map<String, Object> taskInfo = new HashMap<>();
-                        taskInfo.put("id", task.getId());
-                        taskInfo.put("taskName", task.getTaskName());
-                        // Assignees as names/initials
-                        List<String> assigneeNames = new ArrayList<>();
-                        if (task.getAssignId() != null) {
-                            for (String userId : task.getAssignId()) {
-                                String name = userId;
-                                try {
-                                    User user = userService.getUserById(userId);
-                                    if (user != null && user.getFullName() != null && !user.getFullName().isEmpty()) {
-                                        name = user.getFullName();
-                                    }
-                                } catch (Exception ignored) {}
-                                assigneeNames.add(name);
+                if (section.getTaskIds() != null) {
+                    for (String taskId : section.getTaskIds()) {
+                        Task task = taskService.getTask(taskId);
+                        if (task != null) {
+                            Map<String, Object> taskInfo = new HashMap<>();
+                            taskInfo.put("id", task.getId());
+                            taskInfo.put("taskName", task.getTaskName());
+                            // Assignees as names/initials
+                            List<String> assigneeNames = new ArrayList<>();
+                            if (task.getAssignId() != null) {
+                                for (String userId : task.getAssignId()) {
+                                    String name = userId;
+                                    try {
+                                        User user = userService.getUserById(userId);
+                                        if (user != null && user.getFullName() != null && !user.getFullName().isEmpty()) {
+                                            name = user.getFullName();
+                                        }
+                                    } catch (Exception ignored) {}
+                                    assigneeNames.add(name);
+                                }
                             }
+                            taskInfo.put("assignees", assigneeNames);
+                            taskInfo.put("start", task.getStartDate() != null ? task.getStartDate() : task.getDate());
+                            taskInfo.put("end", task.getEndDate());
+                            taskInfo.put("status", task.isCompleted() ? "completed" : "incomplete");
+                            tasksList.add(taskInfo);
                         }
-                        taskInfo.put("assignees", assigneeNames);
-                        taskInfo.put("start", task.getStartDate() != null ? task.getStartDate() : task.getDate());
-                        taskInfo.put("end", task.getEndDate());
-                        taskInfo.put("status", task.isCompleted() ? "completed" : "incomplete");
-                        tasksList.add(taskInfo);
                     }
                 }
                 sectionMap.put("tasks", tasksList);

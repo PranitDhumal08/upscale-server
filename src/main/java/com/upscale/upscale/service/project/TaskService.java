@@ -113,7 +113,7 @@ public class TaskService {
                         boolean sectionFound = false;
                         for (Section s : project.getSection()) {
                             if (s.getId() != null && s.getId().equals(taskData.getSectionId())) {
-                                s.getTasks().add(savedTask);
+                                s.getTaskIds().add(savedTask.getId());
                                 sectionFound = true;
                                 log.info("Task added to section: {}", taskData.getSectionId());
                                 break;
@@ -126,7 +126,7 @@ public class TaskService {
                         // If no sectionId provided, add to first available section or create a default one
                         if(project.getSection() != null && !project.getSection().isEmpty()) {
                             // Add to first section if no specific section is mentioned
-                            project.getSection().get(0).getTasks().add(savedTask);
+                            project.getSection().get(0).getTaskIds().add(savedTask.getId());
                             log.info("Task added to first section of project: {}", projectId);
                         } else {
                             log.warn("No sections found in project: {}", projectId);
@@ -282,6 +282,22 @@ public class TaskService {
         return taskRepo.findByProjectIdsContaining(projectId);
    }
 
+   /**
+    * Helper method to get Task objects from a list of task IDs
+    */
+   public List<Task> getTasksByIds(List<String> taskIds) {
+        List<Task> tasks = new ArrayList<>();
+        if (taskIds != null) {
+            for (String taskId : taskIds) {
+                Task task = getTask(taskId);
+                if (task != null) {
+                    tasks.add(task);
+                }
+            }
+        }
+        return tasks;
+   }
+
    public Task createTask(String taskName) {
         Task task = new Task();
         task.setTaskName(taskName);
@@ -300,8 +316,8 @@ public class TaskService {
 
                 List<Section> section = project.getSection();
                 for(Section s : section){
-                    List<Task> tasks = s.getTasks();
-                    tasks.removeIf(t -> t.getId().equals(id));
+                    List<String> taskIds = s.getTaskIds();
+                    taskIds.removeIf(taskId -> taskId.equals(id));
                 }
                 projectService.save(project);
 
@@ -314,24 +330,15 @@ public class TaskService {
    }
 
     public void updateTask(String taskId) {
-        List<Project> projects = projectService.getProjects();
-
-        for (Project project : projects) {
-            List<Section> sections = project.getSection();
-            for (Section section : sections) {
-                List<Task> tasks = section.getTasks();
-                for (Task task : tasks) {
-                    if (task.getId().equals(taskId)) {
-                        task.setCompleted(true);
-                        projectService.save(project);
-                        log.info("Updated Task: {}", task);
-                        return;
-                    }
-                }
-            }
+        // Update the task directly in the database
+        Task task = getTask(taskId);
+        if(task != null) {
+            task.setCompleted(true);
+            save(task);
+            log.info("Updated Task: {}", task);
+        } else {
+            log.warn("Task with ID {} not found.", taskId);
         }
-
-        log.warn("Task with ID {} not found.", taskId);
     }
 
     public boolean addTaskToProject(String taskName, String sectionId) {
@@ -341,11 +348,10 @@ public class TaskService {
             List<Section> sections = project.getSection();
             for(Section section : sections){
                 if(sectionId.equals(section.getId())){
-                    List<Task> tasks = section.getTasks();
                     Task newTask = new Task();
                     newTask.setTaskName(taskName);
-                    save(newTask);
-                    tasks.add(newTask);
+                    Task savedTask = save(newTask);
+                    section.getTaskIds().add(savedTask.getId());
                 }
             }
             projectService.save(project);
@@ -357,28 +363,20 @@ public class TaskService {
 
         if(taskId == null || taskData == null) return false;
 
-        Project project = projectService.getProject(taskData.getProjectIds().get(0));
+        // Get the task directly from the database and update it
+        Task task = getTask(taskId);
+        if(task != null) {
+            if (taskData.getAssignId() != null) task.setAssignId(taskData.getAssignId());
+            if (taskData.getStartDate() != null) task.setStartDate(taskData.getStartDate());
+            if (taskData.getEndDate() != null) task.setEndDate(taskData.getEndDate());
+            if (taskData.getPriority() != null) task.setPriority(taskData.getPriority());
+            if (taskData.getStatus() != null) task.setStatus(taskData.getStatus());
+            if (taskData.getDescription() != null) task.setDescription(taskData.getDescription());
 
-        List<Section> sections = project.getSection();
-        for(Section section : sections){
-            List<Task> tasks = section.getTasks();
-            for(Task task : tasks){
-                if(taskId.equals(task.getId())){
-
-                    if (taskData.getAssignId() != null) task.setAssignId(taskData.getAssignId());
-                    if (taskData.getStartDate() != null) task.setStartDate(taskData.getStartDate());
-                    if (taskData.getEndDate() != null) task.setEndDate(taskData.getEndDate());
-                    if (taskData.getPriority() != null) task.setPriority(taskData.getPriority());
-                    if (taskData.getStatus() != null) task.setStatus(taskData.getStatus());
-                    if (taskData.getDescription() != null) task.setDescription(taskData.getDescription());
-
-                    taskRepo.save(task);
-
-                }
-            }
+            taskRepo.save(task);
+            return true;
         }
-        projectService.save(project);
-        return true;
-
+        
+        return false;
     }
 }

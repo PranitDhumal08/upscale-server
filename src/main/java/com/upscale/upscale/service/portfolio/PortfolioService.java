@@ -10,6 +10,7 @@ import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.PortfolioRepo;
 import com.upscale.upscale.service.UserService;
 import com.upscale.upscale.service.project.ProjectService;
+import com.upscale.upscale.service.project.TaskService;
 import com.upscale.upscale.service.portfolio.FieldService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class PortfolioService {
     private UserService userService;
     @Autowired
     private ProjectService projectService;
+    @Autowired
+    @Lazy
+    private TaskService taskService;
     @Autowired
     @Lazy
     private FieldService fieldService;
@@ -165,10 +169,13 @@ public class PortfolioService {
                 int completedTasks = 0;
 
                 for (Section section : project.getSection()) {
-                    for (Task task : section.getTasks()) {
-                        totalTasks++;
-                        if (task.isCompleted()) {
-                            completedTasks++;
+                    for (String taskId : section.getTaskIds()) {
+                        Task task = taskService.getTask(taskId);
+                        if (task != null) {
+                            totalTasks++;
+                            if (task.isCompleted()) {
+                                completedTasks++;
+                            }
                         }
                     }
                 }

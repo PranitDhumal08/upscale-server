@@ -404,9 +404,12 @@ public class WorkspaceController {
                             Project project = projectService.getProject(work.getProjectId());
                             if (project != null && project.getSection() != null) {
                                 for (Section section : project.getSection()) {
-                                    if (section.getTasks() != null) {
-                                        for (Task task : section.getTasks()) {
-                                            workspaceService.addTaskToCalendar(calendar, task, project, "workspace", dateFormat, startDate, endDate);
+                                    if (section.getTaskIds() != null) {
+                                        for (String taskId : section.getTaskIds()) {
+                                            Task task = taskService.getTask(taskId);
+                                            if (task != null) {
+                                                workspaceService.addTaskToCalendar(calendar, task, project, "workspace", dateFormat, startDate, endDate);
+                                            }
                                         }
                                     }
                                 }

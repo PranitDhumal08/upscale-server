@@ -132,7 +132,12 @@ public class ProjectService {
                 taskList.add(savedTask);
             }
 
-            section.setTasks(taskList);
+            // Convert task objects to task IDs for storage
+            List<String> taskIds = new ArrayList<>();
+            for (Task task : taskList) {
+                taskIds.add(task.getId());
+            }
+            section.setTaskIds(taskIds);
             //sectionService.save(section);
             sections.add(section);
         }
@@ -363,11 +368,11 @@ public class ProjectService {
                 Section section = iterator.next();
 
                 if (section.getId().equals(sectionId)) {
-                    List<Task> tasks = section.getTasks();
+                    List<String> taskIds = section.getTaskIds();
 
-                    if (tasks != null && !tasks.isEmpty()) {
-                        for (Task task : tasks) {
-                            taskService.deleteTask(task.getId());
+                    if (taskIds != null && !taskIds.isEmpty()) {
+                        for (String taskId : taskIds) {
+                            taskService.deleteTask(taskId);
                         }
                         log.info("Section's Task Deleted with id: {}", sectionId);
                     }
@@ -401,9 +406,10 @@ public class ProjectService {
         Date now = new Date();
         for (Section section : project.getSection()) {
             int incompleteCount = 0;
-            if (section.getTasks() != null) {
-                for (Task task : section.getTasks()) {
-                    if (!task.isCompleted()) {
+            if (section.getTaskIds() != null) {
+                for (String taskId : section.getTaskIds()) {
+                    Task task = taskService.getTask(taskId);
+                    if (task != null && !task.isCompleted()) {
                         incompleteCount++;
                     }
                 }
