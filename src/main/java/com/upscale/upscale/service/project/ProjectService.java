@@ -177,6 +177,8 @@ public class ProjectService {
             if (teammateUser != null) {
                 validTeammates.add(teammate);
                 // Send project invitation via inbox
+                teammateUser.getProjects().add(newProject);
+                userService.save(teammateUser);
                 inboxService.sendProjectInvite(emailId, teammate, newProject);
             } else {
                 log.warn("Teammate not found in database: {}", teammate);
