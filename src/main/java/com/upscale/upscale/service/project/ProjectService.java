@@ -27,9 +27,11 @@ public class ProjectService {
     private UserService userService;
 
     @Autowired
+    @Lazy
     private TaskService taskService;
 
     @Autowired
+    @Lazy
     private InboxService inboxService;
 
     @Autowired
@@ -177,9 +179,9 @@ public class ProjectService {
             if (teammateUser != null) {
                 validTeammates.add(teammate);
                 // Send project invitation via inbox
-                teammateUser.getProjects().add(newProject);
-                userService.save(teammateUser);
-                inboxService.sendProjectInvite(emailId, teammate, newProject);
+                //teammateUser.getProjects().add(newProject);
+                //userService.save(teammateUser);
+                inboxService.sendProjectInvite(emailId, teammate, newProject, teammateUser);
             } else {
                 log.warn("Teammate not found in database: {}", teammate);
             }
@@ -237,8 +239,17 @@ public class ProjectService {
         HashMap<String, String> teammateProjects = new HashMap<>();
         List<Project> allProjects = projectRepo.findAll();
         
+        // Get user ID from email ID since teammates are stored as user IDs
+        User user = userService.getUser(emailId);
+        if (user == null) {
+            log.warn("User not found for email: {}", emailId);
+            return teammateProjects;
+        }
+        
+        String userId = user.getId();
+        
         for (Project project : allProjects) {
-            if (project.getTeammates() != null && project.getTeammates().contains(emailId)) {
+            if (project.getTeammates() != null && project.getTeammates().contains(userId)) {
                 teammateProjects.put(project.getId(), project.getProjectName());
             }
         }
@@ -346,11 +357,11 @@ public class ProjectService {
 
         for (User user : users) {
 
-            List<Project> myproject = user.getProjects();
+            List<String> myProjectIds = user.getProjects();
 
-            myproject.removeIf(p -> p.getId().equals(projectId));
+            myProjectIds.removeIf(pId -> pId.equals(projectId));
 
-            user.setProjects(myproject);
+            user.setProjects(myProjectIds);
             userService.save(user);
         }
 

@@ -32,11 +32,16 @@ public class UserService {
     private UserRepo userRepo;
 
     @Autowired
+    @Lazy
     private PortfolioService portfolioService;
 
     @Autowired
     @Lazy
     private WorkspaceService workspaceService;
+
+    @Autowired
+    @Lazy
+    private com.upscale.upscale.service.project.ProjectService projectService;
 
     private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
@@ -119,7 +124,7 @@ public class UserService {
     public boolean setProject(Project project,String emailId){
         User user = getUser(emailId);
         if(user != null){
-            user.getProjects().add(project);
+            user.getProjects().add(project.getId()); // Add project ID, not project object
             save(user);
             return true;
         }
@@ -140,13 +145,16 @@ public class UserService {
 
         User user = getUser(emailId);
         if(user != null){
-            List<Project> projects = user.getProjects();
-            if(projects != null){
-                for(Project project : projects){
-                    List<String> values = new ArrayList<>();
-                    values.add(project.getProjectName());
-                    values.add("project");
-                    map.put(project.getId(),values);
+            List<String> projectIds = user.getProjects(); // Get project IDs, not project objects
+            if(projectIds != null){
+                for(String projectId : projectIds){
+                    Project project = projectService.getProject(projectId);
+                    if(project != null) {
+                        List<String> values = new ArrayList<>();
+                        values.add(project.getProjectName()); // Get actual project name
+                        values.add("project");
+                        map.put(projectId, values);
+                    }
                 }
             }
 

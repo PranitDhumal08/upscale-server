@@ -27,6 +27,7 @@ public class TaskService {
     private UserLookupService userLookupService;
 
     @Autowired
+    @Lazy
     private InboxService inboxService;
     @Autowired
     private TokenService tokenService;

@@ -24,7 +24,7 @@ public class User {
     private String workspaces; //workspace id
     private List<String> asanaUsed;
     private List<Inbox> inbox = new ArrayList<>();
-    private List<Project> projects = new ArrayList<>();
+    private List<String> projects = new ArrayList<>();
     private List<String> teammates = new ArrayList<>();
 
    // private HashMap<String,Chat> chats = new HashMap<>();

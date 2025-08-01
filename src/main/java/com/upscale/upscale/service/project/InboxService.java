@@ -2,9 +2,12 @@ package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.project.InboxData;
 import com.upscale.upscale.entity.project.*;
+import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.InboxRepo;
+import com.upscale.upscale.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -38,7 +41,11 @@ public class InboxService {
         saveInbox(inbox);
     }
 
-    public void sendProjectInvite(String senderEmailId, String receiverEmailId, Project project) {
+    @Autowired
+    @Lazy
+    private UserService userService;
+
+    public void sendProjectInvite(String senderEmailId, String receiverEmailId, Project project, User user) {
         Inbox inbox = new Inbox();
         inbox.setSenderId(senderEmailId);
         inbox.setReceiverId(receiverEmailId);
@@ -49,6 +56,16 @@ public class InboxService {
         
         inbox.setContent(context);
         saveInbox(inbox);
+
+        //user.getProjects().add(project.getId());
+
+        List<String> projectIds = user.getProjects();
+        projectIds.add(project.getId());
+
+        user.setProjects(projectIds);
+
+        userService.save(user);
+
     }
 
     public List<InboxData> getInbox(String emailId){

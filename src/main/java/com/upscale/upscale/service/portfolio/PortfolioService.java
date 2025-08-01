@@ -33,6 +33,7 @@ public class PortfolioService {
     @Lazy
     private UserService userService;
     @Autowired
+    @Lazy
     private ProjectService projectService;
     @Autowired
     @Lazy
