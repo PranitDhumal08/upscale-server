@@ -202,16 +202,22 @@ public class PortfolioService {
                 Date startDate = project.getStartDate();
                 Date endDate = project.getEndDate();
 
-                LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-                LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-                LocalDate currentDate = LocalDate.now();
-
                 String status;
-                if ((currentDate.isEqual(startLocalDate) || currentDate.isAfter(startLocalDate)) &&
-                        (currentDate.isEqual(endLocalDate) || currentDate.isBefore(endLocalDate))) {
-                    status = "On Track";
+                if (startDate != null && endDate != null) {
+                    LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate currentDate = LocalDate.now();
+
+                    if ((currentDate.isEqual(startLocalDate) || currentDate.isAfter(startLocalDate)) &&
+                            (currentDate.isEqual(endLocalDate) || currentDate.isBefore(endLocalDate))) {
+                        status = "On Track";
+                    } else if (currentDate.isBefore(startLocalDate)) {
+                        status = "Not Started";
+                    } else {
+                        status = "Overdue";
+                    }
                 } else {
-                    status = "No Recent Update";
+                    status = "No Dates Set";
                 }
 
                 projectProgress.put("status", status);
