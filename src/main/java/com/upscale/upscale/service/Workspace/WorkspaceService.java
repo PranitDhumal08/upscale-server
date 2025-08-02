@@ -154,9 +154,17 @@ public class WorkspaceService {
                     List<String> teamMemberIds = new ArrayList<>();
 
                     if (portfolioOpt.isPresent()) {
-                        teamMemberIds = portfolioOpt.get().getTeammates();
+                        teamMemberIds = portfolioOpt.get().getTeammates(); // Portfolio still uses List<String>
                     } else if (project != null) {
-                        teamMemberIds = project.getTeammates();
+                        // Extract emails from teammates HashMap
+                        teamMemberIds = new ArrayList<>();
+                        if (project.getTeammates() != null) {
+                            for (String[] teammateInfo : project.getTeammates().values()) {
+                                if (teammateInfo.length > 2) {
+                                    teamMemberIds.add(teammateInfo[2]); // Email is at index 2
+                                }
+                            }
+                        }
                     }
 
 

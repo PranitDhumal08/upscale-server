@@ -73,9 +73,17 @@ public class WorkspaceController {
                     String[] member = new String[3];
                     User userMember = userService.getUserById(workspace.getMembers().get(i));
 
-                    member[0] = userMember.getFullName();
-                    member[1] = userMember.getEmailId();
-                    member[2] = userMember.getJobTitle();
+                    if (userMember != null) {
+                        member[0] = userMember.getFullName();
+                        member[1] = userMember.getEmailId();
+                        member[2] = userMember.getJobTitle();
+                    } else {
+                        // Handle null user case
+                        member[0] = "null";
+                        member[1] = "null";
+                        member[2] = "null";
+                        log.warn("User not found for member ID: {}", workspace.getMembers().get(i));
+                    }
 
                     members.add(member);
                 }

@@ -18,5 +18,5 @@ public class ProjectData {
     private List<String> recommended = new ArrayList<>(); //overview,List,Board,timeline,dashboard
     private List<String> popular = new ArrayList<>(); //gantt,calender,note,workload
     private List<String> other = new ArrayList<>(); //file,message,workflow
-    private List<String> teammates = new ArrayList<>(); //teammates
+    private HashMap<String,String[]> teammates = new HashMap<>(); //teammates
 }

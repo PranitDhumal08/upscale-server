@@ -96,15 +96,8 @@ public class ProjectController {
             if(projectService.getProject(projectId) != null){
                 Project projectData = projectService.getProject(projectId);
                 
-                // Convert teammate email IDs to names
-                List<String> teammateNames = new ArrayList<>();
-                for(String teammateEmail : projectData.getTeammates()) {
-                    String teammateName = userService.getName(teammateEmail);
-                    if(teammateName != null && !teammateName.isEmpty()) {
-                        teammateNames.add(teammateName);
-                    }
-                }
-                projectData.setTeammates(teammateNames);
+                // ProjectData now uses HashMap<String,String[]> for teammates, so no conversion needed
+                // The teammates HashMap is already in the correct format
 
                 response.put("Data", projectData);
                 return new ResponseEntity<>(response, HttpStatus.OK);
@@ -500,6 +493,212 @@ public class ProjectController {
         }catch (Exception e){
             log.error(e.getMessage());
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/overview/duplicate/{project-id}")
+    public ResponseEntity<?> overviewDuplicate(HttpServletRequest request, @PathVariable("project-id") String projectId) {
+
+        try {
+
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String,Object> response = new HashMap<>();
+            User user = userService.getUser(email); // Fixed: use getUser instead of getUserById for email
+            
+            if(user != null){
+                
+                // Get the original project
+                Project originalProject = projectService.getProject(projectId);
+                if(originalProject == null) {
+                    response.put("status", "error");
+                    response.put("message", "Original project not found");
+                    return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+                }
+                
+                // Check if user has access to the original project (owner or teammate)
+                boolean hasAccess = originalProject.getUserEmailid().equals(email);
+                
+                // Check if user is in teammates HashMap
+                if (!hasAccess && originalProject.getTeammates() != null) {
+                    for (String[] teammateInfo : originalProject.getTeammates().values()) {
+                        if (teammateInfo.length > 2 && teammateInfo[2].equals(email)) {
+                            hasAccess = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if(!hasAccess) {
+                    response.put("status", "error");
+                    response.put("message", "You don't have permission to duplicate this project");
+                    return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+                }
+                
+                // Duplicate the project
+                Project duplicatedProject = projectService.duplicateProject(originalProject, email);
+                
+                if(duplicatedProject != null) {
+                    // Add the duplicated project to user's projects list
+                    user.getProjects().add(duplicatedProject.getId());
+                    userService.save(user);
+                    
+                    response.put("status", "success");
+                    response.put("message", "Project duplicated successfully");
+                    response.put("originalProjectId", projectId);
+                    response.put("duplicatedProjectId", duplicatedProject.getId());
+                    response.put("duplicatedProjectName", duplicatedProject.getProjectName());
+                    
+                    log.info("Project {} duplicated successfully by user {}", projectId, email);
+                    return new ResponseEntity<>(response, HttpStatus.CREATED);
+                } else {
+                    response.put("status", "error");
+                    response.put("message", "Failed to duplicate project");
+                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+                
+            } else {
+                response.put("status", "error");
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+        }catch (Exception e){
+            log.error("Error duplicating project: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/overview/change-role/{user-id}/project/{project-id}/{role-name}")
+    public ResponseEntity<?> changeRoleOfUser(HttpServletRequest request, @PathVariable("user-id") String userId, @PathVariable("project-id") String projectId, @PathVariable("role-name") String roleName) {
+
+        try {
+
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String,Object> response = new HashMap<>();
+
+            Project originalProject = projectService.getProject(projectId);
+            HashMap<String,String[]> teammates = originalProject.getTeammates();
+            if(!teammates.isEmpty()){
+                String[] teammateInfo = teammates.get(userId);
+
+                if(teammateInfo.length > 2 && teammateInfo[2].equals(email)){
+                    teammateInfo[1] = roleName;
+
+                    teammates.put(userId, teammateInfo);
+                    originalProject.setTeammates(teammates);
+                    projectService.save(originalProject);
+                    response.put("status", "success");
+                    response.put("message", "Project updated successfully");
+                    response.put("originalProjectId", projectId);
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+
+                }else{
+                    response.put("status", "error");
+                    response.put("message", "You don't have permission to change this project");
+                    return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+                }
+            }
+            else{
+                response.put("status", "error");
+                response.put("message", "User not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+
+        }catch (Exception e){
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/overview/{project-id}/change-owner/{user-id}")
+    public ResponseEntity<?> changeProjectOwner(HttpServletRequest request, @PathVariable("user-id") String userId, @PathVariable("project-id") String projectid) {
+
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String,Object> response = new HashMap<>();
+            
+            // Check if project exists
+            Project originalProject = projectService.getProject(projectid);
+            if (originalProject == null) {
+                response.put("status", "error");
+                response.put("message", "Project not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+            
+            // Check if current user is the project owner
+            if (!originalProject.getUserEmailid().equals(email)) {
+                response.put("status", "error");
+                response.put("message", "Only project owner can change ownership");
+                return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+            }
+            
+            HashMap<String,String[]> teammates = originalProject.getTeammates();
+            if(teammates == null || teammates.isEmpty()){
+                response.put("status", "error");
+                response.put("message", "No teammates found in project");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+            
+            // Find the target user in teammates
+            String[] targetUserInfo = teammates.get(userId);
+            if (targetUserInfo == null) {
+                response.put("status", "error");
+                response.put("message", "Target user not found in project teammates");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+            
+            // Find current owner in teammates and change to employee
+            String currentOwnerId = null;
+            for (Map.Entry<String, String[]> entry : teammates.entrySet()) {
+                String[] memberInfo = entry.getValue();
+                if (memberInfo.length >= 2 && "owner".equals(memberInfo[1])) {
+                    memberInfo[1] = "employee"; // Change position from owner to employee
+                    teammates.put(entry.getKey(), memberInfo);
+                    currentOwnerId = entry.getKey();
+                    break;
+                }
+            }
+            
+            // Change target user to owner
+            if (targetUserInfo.length >= 2) {
+                targetUserInfo[1] = "owner"; // Change position to owner
+                teammates.put(userId, targetUserInfo);
+            }
+            
+            // Get target user's email for updating project owner
+            String newOwnerEmail = null;
+            if (targetUserInfo.length >= 3) {
+                // Handle different data formats
+                if (targetUserInfo.length == 3) {
+                    newOwnerEmail = targetUserInfo[2]; // Format: [role, position, email]
+                } else if (targetUserInfo.length >= 4) {
+                    newOwnerEmail = targetUserInfo[0]; // Format: [email, role, position, name]
+                }
+            }
+            
+            // Update project
+            originalProject.setTeammates(teammates);
+            if (newOwnerEmail != null) {
+                originalProject.setUserEmailid(newOwnerEmail);
+            }
+            projectService.save(originalProject);
+            
+            response.put("status", "success");
+            response.put("message", "Project ownership changed successfully");
+            response.put("projectId", projectid);
+            response.put("newOwnerId", userId);
+            response.put("previousOwnerId", currentOwnerId);
+            
+            log.info("Project {} ownership changed from {} to {}", projectid, currentOwnerId, userId);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+            
+        }catch (Exception e){
+            log.error("Error changing project ownership: ", e);
+            HashMap<String,Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "Internal server error: " + e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

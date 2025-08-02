@@ -171,22 +171,43 @@ public class ProjectService {
         newProject.setPopular(projectCreate.getPopular());
         newProject.setOther(projectCreate.getOther());
 
+        // Initialize teammates HashMap with creator as owner
+        HashMap<String, String[]> teammatesMap = new HashMap<>();
+        User creator = userService.getUser(emailId);
+        
+        // Add creator as owner
+        String[] creatorInfo = {
+            creator.getRole() != null ? creator.getRole() : "Project Manager", // [0] Role in project
+            "owner", // [1] Position
+            emailId, // [2] Email
+            creator.getFullName() // [3] Full name
+        };
+        teammatesMap.put(creator.getFullName(), creatorInfo);
+
         // Process teammates and send invitations
-        List<String> validTeammates = new ArrayList<>();
-        for (String teammate : projectCreate.getTeammates()) {
-            // Check if teammate exists in database
-            User teammateUser = userService.getUser(teammate);
-            if (teammateUser != null) {
-                validTeammates.add(teammate);
-                // Send project invitation via inbox
-                //teammateUser.getProjects().add(newProject);
-                //userService.save(teammateUser);
-                inboxService.sendProjectInvite(emailId, teammate, newProject, teammateUser);
-            } else {
-                log.warn("Teammate not found in database: {}", teammate);
+        if (projectCreate.getTeammates() != null) {
+            for (String teammateEmail : projectCreate.getTeammates()) {
+                // Check if teammate exists in database
+                User teammateUser = userService.getUser(teammateEmail);
+                if (teammateUser != null) {
+                    String[] teammateInfo = {
+                        teammateUser.getRole() != null ? teammateUser.getRole() : "Team Member", // [0] Role in project
+                        "employee", // [1] Position
+                        teammateEmail, // [2] Email
+                        teammateUser.getFullName()  // [3] Full name
+                    };
+                    teammatesMap.put(teammateUser.getId(), teammateInfo);
+                    
+                    // Send project invitation via inbox
+                    inboxService.sendProjectInvite(emailId, teammateEmail, newProject, teammateUser);
+                    log.info("Invitation sent to: {}", teammateEmail);
+                } else {
+                    log.warn("Teammate not found in database: {}", teammateEmail);
+                }
             }
         }
-        newProject.setTeammates(validTeammates);
+        
+        newProject.setTeammates(teammatesMap);
 
 
 
@@ -204,7 +225,36 @@ public class ProjectService {
             if(project.getRecommended().isEmpty()) project.setRecommended(projectCreate.getRecommended());
             if(project.getPopular().isEmpty()) project.setPopular(projectCreate.getPopular());
             if(project.getOther().isEmpty()) project.setOther(projectCreate.getOther());
-            if(project.getTeammates().isEmpty()) project.setTeammates(projectCreate.getTeammates());
+            
+            // Handle teammates HashMap update
+            if(project.getTeammates().isEmpty() && projectCreate.getTeammates() != null) {
+                HashMap<String, String[]> teammatesMap = new HashMap<>();
+                User creator = userService.getUser(emailId);
+                
+                // Add creator as owner
+                String[] creatorInfo = {
+                    creator.getRole() != null ? creator.getRole() : "Project Manager", // [0] Role
+                    "owner", // [1] Position
+                    creator.getEmailId(), // [2] Email
+                    creator.getFullName() // [3] Full name
+                };
+                teammatesMap.put(creator.getId(), creatorInfo);
+                
+                // Add teammates from ProjectCreate
+                for (String teammateEmail : projectCreate.getTeammates()) {
+                    User teammateUser = userService.getUser(teammateEmail);
+                    if (teammateUser != null) {
+                        String[] teammateInfo = {
+                            teammateUser.getRole() != null ? teammateUser.getRole() : "Team Member", // [0] Role
+                            "employee", // [1] Position
+                            teammateEmail, // [2] Email
+                            teammateUser.getFullName() // [3] Full name
+                        };
+                        teammatesMap.put(teammateUser.getFullName(), teammateInfo);
+                    }
+                }
+                project.setTeammates(teammatesMap);
+            }
 
             save(project);
             return true;
@@ -239,18 +289,21 @@ public class ProjectService {
         HashMap<String, String> teammateProjects = new HashMap<>();
         List<Project> allProjects = projectRepo.findAll();
         
-        // Get user ID from email ID since teammates are stored as user IDs
         User user = userService.getUser(emailId);
         if (user == null) {
             log.warn("User not found for email: {}", emailId);
             return teammateProjects;
         }
         
-        String userId = user.getId();
-        
         for (Project project : allProjects) {
-            if (project.getTeammates() != null && project.getTeammates().contains(userId)) {
-                teammateProjects.put(project.getId(), project.getProjectName());
+            if (project.getTeammates() != null) {
+                // Check if user's email exists in any of the teammate entries
+                for (String[] teammateInfo : project.getTeammates().values()) {
+                    if (teammateInfo.length > 2 && teammateInfo[2].equals(emailId)) {
+                        teammateProjects.put(project.getId(), project.getProjectName());
+                        break; // Found user in this project, no need to check other teammates
+                    }
+                }
             }
         }
         
@@ -484,7 +537,13 @@ public class ProjectService {
             return false;
         }
 
-        if(!projectOverview.getProjectDescription().isEmpty()) project.setProjectDescription(projectOverview.getProjectDescription());
+        if(projectOverview.getProjectName() != null && !projectOverview.getProjectName().isEmpty()) {
+            project.setProjectName(projectOverview.getProjectName());
+            log.info("Project name updated to: {}", projectOverview.getProjectName());
+        }
+        if(projectOverview.getProjectDescription() != null && !projectOverview.getProjectDescription().isEmpty()) {
+            project.setProjectDescription(projectOverview.getProjectDescription());
+        }
         if(projectOverview.getStartDate() != null) project.setStartDate(projectOverview.getStartDate());
         if(projectOverview.getEndDate() != null) project.setEndDate(projectOverview.getEndDate());
 
@@ -503,14 +562,211 @@ public class ProjectService {
 
         HashMap<String,Object> data = new HashMap<>();
 
+        data.put("Project name", project.getProjectName());
         data.put("Project description", project.getProjectDescription());
-        String projectOwner = userService.getUser(project.getUserEmailid()).getFullName();
-        data.put("Project Roles", projectOwner);
+        
+        // Format teammates information for Project Roles
+        HashMap<String, Object> projectRoles = new HashMap<>();
+        if (project.getTeammates() != null && !project.getTeammates().isEmpty()) {
+            for (Map.Entry<String, String[]> entry : project.getTeammates().entrySet()) {
+                String memberName = entry.getKey();
+                String[] memberInfo = entry.getValue();
+                
+                HashMap<String, String> memberDetails = new HashMap<>();
+                
+                if (memberInfo.length == 3) {
+                    // Format: ['role', 'position', 'email'] - like 'Shivammmm': ['dev', 'employee', 'shivamthorat21@gmail.com']
+                    memberDetails.put("email", memberInfo[0]);     // email
+                    memberDetails.put("role", memberInfo[1]); // role
+                    memberDetails.put("position", memberInfo[2]);    // possition
+                    memberDetails.put("name", memberName);        // name from key
+                } else if (memberInfo.length >= 4) {
+                    // Format: ['email', 'role', 'position', 'name'] - like '688e450e7cc0a5763a323ece': ['shivamthorat98@gmail.com', 'dev', 'employee', 'Shivammmm']
+                    memberDetails.put("email", memberInfo[0]);    // email
+                    memberDetails.put("role", memberInfo[1]);     // role
+                    memberDetails.put("position", memberInfo[2]); // position
+                    memberDetails.put("name", memberInfo[3]);     // name
+                } else {
+                    // Fallback for incomplete data
+                    memberDetails.put("role", "null");
+                    memberDetails.put("position", "null");
+                    memberDetails.put("email", "null");
+                    memberDetails.put("name", memberName);
+                    log.warn("Incomplete teammate data for: {}", memberName);
+                }
+                
+                projectRoles.put(memberName, memberDetails);
+            }
+        } else {
+            // Fallback: if teammates HashMap is empty, show project owner
+            User projectOwner = userService.getUser(project.getUserEmailid());
+            if (projectOwner != null) {
+                HashMap<String, String> ownerDetails = new HashMap<>();
+                ownerDetails.put("role", projectOwner.getRole() != null ? projectOwner.getRole() : "Project Manager");
+                ownerDetails.put("position", "owner");
+                ownerDetails.put("email", project.getUserEmailid());
+                ownerDetails.put("name", projectOwner.getFullName());
+                
+                projectRoles.put(projectOwner.getFullName(), ownerDetails);
+            } else {
+                // Handle case where project owner user is not found - show as null
+                HashMap<String, String> ownerDetails = new HashMap<>();
+                ownerDetails.put("role", "null");
+                ownerDetails.put("position", "owner");
+                ownerDetails.put("email", project.getUserEmailid() != null ? project.getUserEmailid() : "null");
+                ownerDetails.put("name", "null");
+                
+                projectRoles.put("null", ownerDetails);
+                log.warn("Project owner user not found for email: {}", project.getUserEmailid());
+            }
+        }
+        
+        data.put("Project Roles", projectRoles);
         data.put("Project start date",project.getStartDate());
         data.put("Project end date",project.getEndDate());
 
         log.info("Project overview Retrieved");
         return data;
 
+    }
+
+    /**
+     * Duplicates a project with all its sections and tasks
+     * @param originalProject The project to duplicate
+     * @param newOwnerEmail The email of the user who will own the duplicated project
+     * @return The duplicated project
+     */
+    public Project duplicateProject(Project originalProject, String newOwnerEmail) {
+        try {
+            // Create new project with duplicated data
+            Project duplicatedProject = new Project();
+            
+            // Copy basic project information
+            duplicatedProject.setProjectName(originalProject.getProjectName() + " (Copy)");
+            duplicatedProject.setProjectDescription(originalProject.getProjectDescription());
+            duplicatedProject.setUserEmailid(newOwnerEmail);
+            duplicatedProject.setWorkspace(originalProject.getWorkspace());
+            duplicatedProject.setLayouts(originalProject.getLayouts());
+            duplicatedProject.setStartDate(originalProject.getStartDate());
+            duplicatedProject.setEndDate(originalProject.getEndDate());
+            duplicatedProject.setPortfolioPriority(originalProject.getPortfolioPriority());
+            
+            // Copy lists (create new instances to avoid reference issues)
+            duplicatedProject.setRecommended(new ArrayList<>(originalProject.getRecommended()));
+            duplicatedProject.setPopular(new ArrayList<>(originalProject.getPopular()));
+            duplicatedProject.setOther(new ArrayList<>(originalProject.getOther()));
+            
+            // Copy teammates HashMap (create new HashMap with cloned arrays)
+            HashMap<String, String[]> duplicatedTeammates = new HashMap<>();
+            if (originalProject.getTeammates() != null) {
+                for (Map.Entry<String, String[]> entry : originalProject.getTeammates().entrySet()) {
+                    String[] originalInfo = entry.getValue();
+                    String[] duplicatedInfo = originalInfo.clone(); // Clone the array
+                    duplicatedTeammates.put(entry.getKey(), duplicatedInfo);
+                }
+            }
+            duplicatedProject.setTeammates(duplicatedTeammates);
+            
+            // Initialize sections list
+            duplicatedProject.setSection(new ArrayList<>());
+            
+            // Save the project first to get an ID
+            save(duplicatedProject);
+            log.info("Created duplicate project with ID: {}", duplicatedProject.getId());
+            
+            // Duplicate all sections and tasks
+            if (originalProject.getSection() != null) {
+                for (Section originalSection : originalProject.getSection()) {
+                    Section duplicatedSection = duplicateSection(originalSection, duplicatedProject.getId());
+                    duplicatedProject.getSection().add(duplicatedSection);
+                }
+            }
+            
+            // Save the project again with all sections
+            save(duplicatedProject);
+            
+            log.info("Successfully duplicated project {} to {}", originalProject.getId(), duplicatedProject.getId());
+            return duplicatedProject;
+            
+        } catch (Exception e) {
+            log.error("Error duplicating project: ", e);
+            return null;
+        }
+    }
+    
+    /**
+     * Duplicates a section with all its tasks
+     * @param originalSection The section to duplicate
+     * @param newProjectId The ID of the new project
+     * @return The duplicated section
+     */
+    private Section duplicateSection(Section originalSection, String newProjectId) {
+        Section duplicatedSection = new Section();
+        duplicatedSection.setId(java.util.UUID.randomUUID().toString());
+        duplicatedSection.setSectionName(originalSection.getSectionName());
+        duplicatedSection.setTaskIds(new ArrayList<>());
+        
+        // Duplicate all tasks in this section
+        if (originalSection.getTaskIds() != null) {
+            for (String originalTaskId : originalSection.getTaskIds()) {
+                Task originalTask = taskService.getTask(originalTaskId);
+                if (originalTask != null) {
+                    Task duplicatedTask = duplicateTask(originalTask, newProjectId);
+                    if (duplicatedTask != null) {
+                        duplicatedSection.getTaskIds().add(duplicatedTask.getId());
+                    }
+                }
+            }
+        }
+        
+        log.info("Duplicated section '{}' with {} tasks", originalSection.getSectionName(), 
+                duplicatedSection.getTaskIds().size());
+        return duplicatedSection;
+    }
+    
+    /**
+     * Duplicates a task
+     * @param originalTask The task to duplicate
+     * @param newProjectId The ID of the new project
+     * @return The duplicated task
+     */
+    private Task duplicateTask(Task originalTask, String newProjectId) {
+        try {
+            Task duplicatedTask = new Task();
+            
+            // Copy task data
+            duplicatedTask.setTaskName(originalTask.getTaskName());
+            duplicatedTask.setDescription(originalTask.getDescription());
+            duplicatedTask.setPriority(originalTask.getPriority());
+            duplicatedTask.setStatus(originalTask.getStatus());
+            duplicatedTask.setGroup(originalTask.getGroup());
+            duplicatedTask.setDate(originalTask.getDate());
+            duplicatedTask.setStartDate(originalTask.getStartDate());
+            duplicatedTask.setEndDate(originalTask.getEndDate());
+            
+            // Set as not completed (fresh start for duplicated tasks)
+            duplicatedTask.setCompleted(false);
+            
+            // Copy assignees (keep the same people assigned)
+            duplicatedTask.setAssignId(new ArrayList<>(originalTask.getAssignId()));
+            
+            // Set the new project ID
+            duplicatedTask.setProjectIds(new ArrayList<>());
+            duplicatedTask.getProjectIds().add(newProjectId);
+            
+            // Set creator as the person duplicating the project
+            // Note: We don't have the creator ID here, so we'll leave it as original
+            duplicatedTask.setCreatedId(originalTask.getCreatedId());
+            
+            // Save the duplicated task
+            Task savedTask = taskService.save(duplicatedTask);
+            log.debug("Duplicated task '{}' with ID: {}", originalTask.getTaskName(), savedTask.getId());
+            
+            return savedTask;
+            
+        } catch (Exception e) {
+            log.error("Error duplicating task {}: ", originalTask.getId(), e);
+            return null;
+        }
     }
 }

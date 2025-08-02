@@ -17,6 +17,6 @@ public class ProjectCreate {
         private List<String> recommended; //overview,List,Board,timeline,dashboard
         private List<String> popular; //gantt,calender,note,workload
         private List<String> other; //file,message,workflow
-        private List<String> teammates; //teammates
+        private List<String> teammates; //teammates (still List for input, converted to HashMap in service)
 
 }

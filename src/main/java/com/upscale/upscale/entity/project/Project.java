@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 @Data
@@ -23,7 +24,13 @@ public class Project {
     private List<String> recommended = new ArrayList<>(); //overview,List,Board,timeline,dashboard
     private List<String> popular = new ArrayList<>(); //gantt,calender,note,workload
     private List<String> other = new ArrayList<>(); //file,message,workflow
-    private List<String> teammates = new ArrayList<>(); //teammates
+    private HashMap<String,String[]> teammates = new HashMap<>(); //teammates
+//    Key: User's name
+//    Value: String array with 4 elements:
+//           [0]: emailid
+//           [1]: Role in the project
+//           [2]: Position (owner/employee)
+//           [3]: name
     private List<Section> section = new ArrayList<>(); // Sections in the project
 
     private Date startDate;

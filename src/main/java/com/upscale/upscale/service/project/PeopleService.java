@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,13 +77,41 @@ public class PeopleService {
                     Project project = projectService.getProject(peopleInvite.getProjectId().get(i));
                     Optional<Portfolio> portfolio = portfolioService.getPortfolio(peopleInvite.getProjectId().get(i));
                     if (project != null) {
-                        project.getTeammates().add(user.getId());
-                        log.info("Teammate " + user.getId() + " has been saved");
+                        // Determine the role for the invited user
+                        String assignedRole;
+                        if (peopleInvite.getRole() != null && !peopleInvite.getRole().trim().isEmpty()) {
+                            // Use the role specified in the invitation
+                            assignedRole = peopleInvite.getRole().trim();
+                        } else if (user.getRole() != null && !user.getRole().trim().isEmpty()) {
+                            // Use the user's profile role
+                            assignedRole = user.getRole();
+                        } else {
+                            // Default role
+                            assignedRole = "Team Member";
+                        }
 
+                        // Add user to teammates HashMap
+                        String[] teammateInfo = {
+                                userEmailId,
+                            assignedRole,    // Role in project
+                            "employee",      // Position (invited users are always employees)
+                            user.getFullName()      // fullname
+                        };
+                        
+                        // Initialize teammates HashMap if it's null
+                        if (project.getTeammates() == null) {
+                            project.setTeammates(new HashMap<>());
+                        }
+                        HashMap<String,String[]> teammates = project.getTeammates();
+                        teammates.put(user.getId(), teammateInfo);
+                        project.setTeammates(teammates);
+                        //project.getTeammates().put(user.getFullName(), teammateInfo);
+                        log.info("Teammate {} ({}) added to project {} with role: {}", 
+                                user.getFullName(), user.getId(), project.getProjectName(), assignedRole);
 
                     } else if (portfolio.isPresent()) {
                         portfolio.get().getTeammates().add(user.getId());
-                        log.info("Teammate " + user.getId() + " has been saved");
+                        log.info("Teammate " + user.getId() + " has been saved to portfolio");
                     } else {
                         log.warn("Project not found for ID: " + peopleInvite.getProjectId().get(i));
                     }
