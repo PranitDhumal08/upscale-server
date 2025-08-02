@@ -13,6 +13,7 @@ import com.upscale.upscale.service.portfolio.PortfolioService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @Slf4j
@@ -230,5 +232,100 @@ public class UserService {
 
         }
         return null;
+    }
+
+    /**
+     * Updates the trial status for a user based on their creation date
+     * This method is called when user accesses home API
+     */
+    public void updateTrialStatus(User user) {
+        if (user == null) return;
+        
+        // Only update if user is currently active
+        if (user.isActive() && user.getTrial() > 0) {
+            // For now, we'll manually decrease trial when this method is called
+            // In a real implementation, you'd track the last update date
+            log.info("Current trial status for user {}: {} days remaining, active: {}", 
+                    user.getEmailId(), user.getTrial(), user.isActive());
+        }
+        
+        // If trial has reached 0, deactivate the user
+        if (user.getTrial() <= 0 && user.isActive()) {
+            user.setActive(false);
+            save(user);
+            log.info("User {} trial expired. Account deactivated.", user.getEmailId());
+        }
+    }
+
+    /**
+     * Manually decrease trial for a user (for testing purposes)
+     * In production, this would be handled by a scheduled task
+     */
+    public boolean decreaseTrialDay(String emailId) {
+        User user = getUser(emailId);
+        if (user != null && user.getTrial() > 0) {
+            user.setTrial(user.getTrial() - 1);
+            
+            // If trial reaches 0, deactivate user
+            if (user.getTrial() <= 0) {
+                user.setActive(false);
+                log.info("User {} trial expired after manual decrease. Account deactivated.", emailId);
+            }
+            
+            save(user);
+            log.info("Trial decreased for user {}: {} days remaining", emailId, user.getTrial());
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Scheduled task to decrease trial for all active users daily
+     * Runs every day at midnight
+     */
+    @Scheduled(cron = "0 0 0 * * ?") // Runs at 00:00:00 every day
+    public void dailyTrialUpdate() {
+        log.info("Starting daily trial update for all users...");
+        
+        List<User> allUsers = getAllUsers();
+        int updatedUsers = 0;
+        int deactivatedUsers = 0;
+        
+        for (User user : allUsers) {
+            if (user.isActive() && user.getTrial() > 0) {
+                user.setTrial(user.getTrial() - 1);
+                
+                if (user.getTrial() <= 0) {
+                    user.setActive(false);
+                    deactivatedUsers++;
+                    log.info("User {} trial expired. Account deactivated.", user.getEmailId());
+                } else {
+                    log.debug("Trial decreased for user {}: {} days remaining", user.getEmailId(), user.getTrial());
+                }
+                
+                save(user);
+                updatedUsers++;
+            }
+        }
+        
+        log.info("Daily trial update completed. Updated {} users, deactivated {} users", updatedUsers, deactivatedUsers);
+    }
+
+    /**
+     * Get trial information for a user
+     */
+    public HashMap<String, Object> getTrialInfo(String emailId) {
+        User user = getUser(emailId);
+        HashMap<String, Object> trialInfo = new HashMap<>();
+        
+        if (user != null) {
+            trialInfo.put("trial", user.getTrial());
+            trialInfo.put("active", user.isActive());
+            trialInfo.put("status", user.isActive() ? "Active" : "Expired");
+        } else {
+            trialInfo.put("error", "User not found");
+        }
+        
+        return trialInfo;
     }
 }

@@ -125,9 +125,12 @@ public class UserController {
                 newUser.setEmailId(emailId);
                 newUser.setOtp(otp);
                 newUser.setNewUser(true);
+                // Initialize trial system for new users
+                newUser.setTrial(14);
+                newUser.setActive(true);
                 response.put("isNewUser", "true");
                 userService.save(newUser);
-                log.info("User created: " + emailId + " suceessfully "+otp);
+                log.info("User created: " + emailId + " successfully with 14-day trial "+otp);
             } else {
                 existingUser.setOtp(otp);
                 existingUser.setNewUser(false);
@@ -253,10 +256,19 @@ public class UserController {
 
             HashMap<String, Object> response = new HashMap<>();
 
+            User user = userService.getUser(emailId);
+            
+            // Update trial status before returning home data
+            userService.updateTrialStatus(user);
+
             response.put("Email", emailId);
             response.put("Time", userService.getDate());
             response.put("FullName", userService.getName(emailId));
-            response.put("Role", userService.getUser(emailId).getRole());
+            response.put("Role", user.getRole());
+
+            // Add trial information
+            response.put("Trial", user.getTrial());
+            response.put("Active", user.isActive());
 
             response.put("Goal", goalService.getGoal(emailId));
 
@@ -329,6 +341,39 @@ public class UserController {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
         }catch (Exception e){
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/decrease-trial")
+    public ResponseEntity<?> decreaseTrial(HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (userService.decreaseTrialDay(emailId)) {
+                User user = userService.getUser(emailId);
+                response.put("message", "Trial decreased successfully");
+                response.put("trial", user.getTrial());
+                response.put("active", user.isActive());
+                response.put("status", user.isActive() ? "Active" : "Expired");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Failed to decrease trial or trial already at 0");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/trial-info")
+    public ResponseEntity<?> getTrialInfo(HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = userService.getTrialInfo(emailId);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

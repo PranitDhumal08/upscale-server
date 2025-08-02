@@ -33,4 +33,7 @@ public class User {
     private String departmentOrTeam;
     private String aboutMe;
 
+    private int trial;
+    private boolean active;
+
 }
