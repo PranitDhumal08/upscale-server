@@ -1,6 +1,7 @@
 package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.project.InboxData;
+import com.upscale.upscale.entity.Goal;
 import com.upscale.upscale.entity.project.*;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.InboxRepo;
@@ -109,6 +110,18 @@ public class InboxService {
         inbox.setReceiverId(receiverEmailId);
 
         inbox.setContent(message.getBody());
+
+        saveInbox(inbox);
+    }
+
+    public void sendGoalMessage(Goal goal, String senderEmailId, String receiverEmailId){
+
+        Inbox inbox = new Inbox();
+
+        inbox.setSenderId(senderEmailId);
+        inbox.setReceiverId(receiverEmailId);
+
+        inbox.setContent("You have given a goal");
 
         saveInbox(inbox);
     }

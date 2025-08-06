@@ -18,4 +18,5 @@ public class Goal {
     private String timePeriod;
     private String privacy;
     private List<String> members = new ArrayList<>();
+    private List<String> projectIds = new ArrayList<>();
 }

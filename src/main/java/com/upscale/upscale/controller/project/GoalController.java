@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/goal")
@@ -58,7 +59,7 @@ public class GoalController {
         }
     }
 
-    @GetMapping("/get-goal")
+    @GetMapping("/get-team-goal")
     public ResponseEntity<?> getGoal(HttpServletRequest request) {
 
         try{
@@ -66,8 +67,8 @@ public class GoalController {
             String emailId = tokenService.getEmailFromToken(request);
             HashMap<String,Object> response = new HashMap<>();
 
-            GoalData goalData = goalService.getGoal(emailId);
-            if(goalData != null){
+            List<GoalData> goalData = goalService.getTeamGoal(emailId);
+            if(!goalData.isEmpty()){
                 response.put("status", "success");
                 response.put("Data",goalData);
                 log.info("Goal get successfully");
@@ -75,12 +76,48 @@ public class GoalController {
             }
             else{
                 response.put("status", "error");
+                response.put("message", "No goals found");
                 log.info("Goal get failed");
                 return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
             }
 
         }catch (Exception e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+            HashMap<String,Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/get-my-goals")
+    public ResponseEntity<?> getMyGoals(HttpServletRequest request) {
+
+        try{
+
+            String emailId = tokenService.getEmailFromToken(request);
+            HashMap<String,Object> response = new HashMap<>();
+
+            List<GoalData> goalDataList = goalService.getMyGoals(emailId);
+            if(goalDataList != null && !goalDataList.isEmpty()){
+                response.put("status", "success");
+                response.put("Data", goalDataList);
+                response.put("count", goalDataList.size());
+                log.info("All goals retrieved successfully. Count: {}", goalDataList.size());
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            else{
+                response.put("status", "error");
+                response.put("message", "No goals found");
+                response.put("count", 0);
+                log.info("No goals found for user");
+                return new ResponseEntity<>(response, HttpStatus.NO_CONTENT);
+            }
+
+        }catch (Exception e) {
+            HashMap<String,Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", e.getMessage());
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
         }
     }
 }

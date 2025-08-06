@@ -12,4 +12,8 @@ public class GoalData {
     private String timePeriod;
     private String privacy;
     private List<String> members;
+    private List<String> projectIds;
+    private Double completionPercentage; // Goal completion percentage based on project tasks
+    private Integer totalTasks; // Total tasks in associated projects
+    private Integer completedTasks; // Completed tasks in associated projects
 }

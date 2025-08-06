@@ -270,7 +270,7 @@ public class UserController {
             response.put("Trial", user.getTrial());
             response.put("Active", user.isActive());
 
-            response.put("Goal", goalService.getGoal(emailId));
+            //response.put("Goal", goalService.getMyGoals(emailId));
 
             // Projects created by the user
             response.put("My Projects", userService.getProjects(emailId));
