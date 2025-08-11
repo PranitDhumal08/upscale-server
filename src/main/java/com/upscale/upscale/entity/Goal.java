@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Data
@@ -19,4 +20,6 @@ public class Goal {
     private String privacy;
     private List<String> members = new ArrayList<>();
     private List<String> projectIds = new ArrayList<>();
+
+    private List<String> subGoalIds = new ArrayList<>(); //sub goal ids
 }

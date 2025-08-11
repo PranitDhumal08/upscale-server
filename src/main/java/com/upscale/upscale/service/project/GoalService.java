@@ -35,6 +35,10 @@ public class GoalService {
     public void save(Goal goal) {
         goalRepo.save(goal);
     }
+
+    public Goal saveGoal(Goal goal){
+        return goalRepo.save(goal);
+    }
     public String userId(String emailId){
         User user = userRepo.findByEmailId(emailId);
         return user.getId();
@@ -50,6 +54,11 @@ public class GoalService {
             goal.setGoalOwner(userId(emailId));
             goal.setTimePeriod(goalData.getTimePeriod());
             goal.setPrivacy(goalData.getPrivacy());
+
+//            List<String>  = new ArrayList<>();
+//            for(int i=0;i<goalData.getChildren().size();i++){
+//
+//            }
 
             List<String> members = new ArrayList<>();
             
@@ -96,6 +105,8 @@ public class GoalService {
 
                     GoalData goalData = new GoalData();
 
+
+                    goalData.setGoalId(dbGoal.getId());
                     goalData.setUserId(currentUserId);
                     goalData.setGoalTitle(dbGoal.getGoalTitle());
                     goalData.setTimePeriod(dbGoal.getTimePeriod());
@@ -138,7 +149,8 @@ public class GoalService {
             // Only include personal goals (goals with exactly 1 member - just the owner)
             if(goal.getMembers().contains(currentUserId) && goal.getMembers().size() == 1){
                 GoalData goalData = new GoalData();
-                goalData.setUserId(currentUserId);
+                goalData.setGoalId(goal.getId());
+                goalData.setUserId(goal.getUserId());
                 goalData.setGoalTitle(goal.getGoalTitle());
                 goalData.setTimePeriod(goal.getTimePeriod());
                 goalData.setPrivacy(goal.getPrivacy());
@@ -233,6 +245,201 @@ public class GoalService {
             goalData.setTotalTasks(0);
             goalData.setCompletedTasks(0);
         }
+    }
+
+
+
+    public boolean setSubGoal(String parentGoalId, GoalData goalData){
+
+        Goal parentGoal = goalRepo.findById(parentGoalId).orElse(null);
+        if(parentGoal != null && goalData != null){
+
+            List<String> childGoalIds = parentGoal.getSubGoalIds();
+
+            Goal newGoal = new Goal();
+            
+            // Set basic goal properties
+            newGoal.setGoalTitle(goalData.getGoalTitle());
+            newGoal.setTimePeriod(goalData.getTimePeriod());
+            newGoal.setPrivacy(goalData.getPrivacy());
+            newGoal.setProjectIds(goalData.getProjectIds() != null ? goalData.getProjectIds() : new ArrayList<>());
+            
+            // Set owner information
+            String ownerUserId = userId(goalData.getGoalOwner());
+            newGoal.setUserId(ownerUserId);
+            newGoal.setGoalOwner(ownerUserId);
+            
+            // Set members (similar to main goal logic)
+            List<String> members = new ArrayList<>();
+            members.add(ownerUserId); // Always add owner first
+            
+            // If members are provided in the request, add them (making it a team sub-goal)
+            if(goalData.getMembers() != null && !goalData.getMembers().isEmpty()){
+                for(String memberEmail : goalData.getMembers()){
+                    User user = userService.getUser(memberEmail);
+                    if(user != null && !user.getId().equals(ownerUserId)){ // Avoid duplicate owner
+                        members.add(user.getId());
+                        // Send notification about sub-goal assignment
+                        inboxService.sendGoalMessage(newGoal, goalData.getGoalOwner(), memberEmail);
+                        log.info("Send sub-goal message to user {}", user.getFullName());
+                    }
+                }
+                log.info("Created team sub-goal with {} members", members.size());
+            } else {
+                log.info("Created personal sub-goal for user {}", goalData.getGoalOwner());
+            }
+            
+            newGoal.setMembers(members);
+
+            // Save the new sub-goal
+            Goal savedSubGoal = saveGoal(newGoal);
+
+            // Add sub-goal ID to parent goal
+            childGoalIds.add(savedSubGoal.getId());
+            parentGoal.setSubGoalIds(childGoalIds);
+            goalRepo.save(parentGoal);
+            
+            log.info("Sub-goal '{}' created successfully with ID: {} for parent goal: {}", 
+                    goalData.getGoalTitle(), savedSubGoal.getId(), parentGoalId);
+            return true;
+        }
+
+        log.error("Failed to create sub-goal: Parent goal not found or invalid data");
+        return false;
+    }
+
+    /**
+     * Get all goals with their children (sub-goals) in a hierarchical structure
+     * @param emailId The email ID of the user
+     * @return List of parent goals with their children populated
+     */
+    public List<GoalData> getAllGoalsWithChildren(String emailId) {
+        String currentUserId = userId(emailId);
+        
+        try {
+            // Get all goals where the user is either owner or member
+            List<Goal> allUserGoals = new ArrayList<>();
+            
+            // Get goals created by this user
+            List<Goal> ownedGoals = goalRepo.findByUserId(currentUserId);
+            allUserGoals.addAll(ownedGoals);
+            
+            // Get goals where user is a member (but not owner)
+            List<Goal> allGoals = goalRepo.findAll();
+            for (Goal goal : allGoals) {
+                if (goal.getMembers().contains(currentUserId) && !goal.getUserId().equals(currentUserId)) {
+                    allUserGoals.add(goal);
+                }
+            }
+            
+            // Separate parent goals and sub-goals
+            List<Goal> parentGoals = new ArrayList<>();
+            List<Goal> subGoals = new ArrayList<>();
+            
+            for (Goal goal : allUserGoals) {
+                if (isParentGoal(goal, allUserGoals)) {
+                    parentGoals.add(goal);
+                } else if (isSubGoal(goal, allUserGoals)) {
+                    subGoals.add(goal);
+                }
+            }
+            
+            // Convert parent goals to GoalData and populate their children
+            List<GoalData> result = new ArrayList<>();
+            
+            for (Goal parentGoal : parentGoals) {
+                GoalData parentGoalData = convertGoalToGoalData(parentGoal, currentUserId);
+                
+                // Find and add children for this parent goal
+                if (parentGoal.getSubGoalIds() != null && !parentGoal.getSubGoalIds().isEmpty()) {
+                    List<GoalData> children = new ArrayList<>();
+                    
+                    for (String subGoalId : parentGoal.getSubGoalIds()) {
+                        Goal subGoal = goalRepo.findById(subGoalId).orElse(null);
+                        if (subGoal != null) {
+                            GoalData childGoalData = convertGoalToGoalData(subGoal, currentUserId);
+                            childGoalData.setParentGoalId(parentGoal.getId());
+                            children.add(childGoalData);
+                        }
+                    }
+                    
+                    parentGoalData.setChildren(children);
+                    log.info("Parent goal '{}' has {} sub-goals", parentGoal.getGoalTitle(), children.size());
+                }
+                
+                result.add(parentGoalData);
+            }
+            
+            log.info("Retrieved {} parent goals with hierarchical structure for user {}", result.size(), emailId);
+            return result;
+            
+        } catch (Exception e) {
+            log.error("Error retrieving goals with children for user {}: {}", emailId, e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Check if a goal is a parent goal (has sub-goals or is not referenced as a sub-goal)
+     */
+    private boolean isParentGoal(Goal goal, List<Goal> allGoals) {
+        // A goal is a parent if it has sub-goals OR if it's not referenced as a sub-goal by any other goal
+        if (goal.getSubGoalIds() != null && !goal.getSubGoalIds().isEmpty()) {
+            return true;
+        }
+        
+        // Check if this goal is referenced as a sub-goal by any other goal
+        for (Goal otherGoal : allGoals) {
+            if (otherGoal.getSubGoalIds() != null && otherGoal.getSubGoalIds().contains(goal.getId())) {
+                return false; // This goal is a sub-goal of another goal
+            }
+        }
+        
+        return true; // This goal is not referenced as a sub-goal, so it's a parent goal
+    }
+    
+    /**
+     * Check if a goal is a sub-goal (referenced by another goal's subGoalIds)
+     */
+    private boolean isSubGoal(Goal goal, List<Goal> allGoals) {
+        for (Goal otherGoal : allGoals) {
+            if (otherGoal.getSubGoalIds() != null && otherGoal.getSubGoalIds().contains(goal.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Convert Goal entity to GoalData DTO with completion calculation
+     */
+    private GoalData convertGoalToGoalData(Goal goal, String currentUserId) {
+        GoalData goalData = new GoalData();
+        
+        goalData.setGoalId(goal.getId());
+        goalData.setUserId(goal.getUserId());
+        goalData.setGoalTitle(goal.getGoalTitle());
+        goalData.setTimePeriod(goal.getTimePeriod());
+        goalData.setPrivacy(goal.getPrivacy());
+        goalData.setProjectIds(goal.getProjectIds());
+        goalData.setGoalOwner(goal.getGoalOwner());
+        
+        // Convert member IDs to email addresses
+        List<String> memberEmails = new ArrayList<>();
+        if (goal.getMembers() != null) {
+            for (String memberId : goal.getMembers()) {
+                User memberUser = userService.getUserById(memberId);
+                if (memberUser != null) {
+                    memberEmails.add(memberUser.getEmailId());
+                }
+            }
+        }
+        goalData.setMembers(memberEmails);
+        
+        // Calculate completion percentage
+        calculateGoalCompletion(goalData, goal.getProjectIds());
+        
+        return goalData;
     }
 
 }
