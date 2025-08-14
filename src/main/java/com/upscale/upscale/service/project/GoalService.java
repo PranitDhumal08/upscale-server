@@ -442,4 +442,60 @@ public class GoalService {
         return goalData;
     }
 
+    /**
+     * Get all goals that are connected to a specific project
+     * @param projectId The project ID to search for
+     * @return List of goals that contain this project ID
+     */
+    public List<GoalData> getGoalsByProjectId(String projectId) {
+        List<GoalData> connectedGoals = new ArrayList<>();
+        
+        try {
+            // Get all goals from the database
+            List<Goal> allGoals = goalRepo.findAll();
+            
+            for (Goal goal : allGoals) {
+                // Check if this goal contains the specified project ID
+                if (goal.getProjectIds() != null && goal.getProjectIds().contains(projectId)) {
+                    GoalData goalData = new GoalData();
+                    
+                    goalData.setGoalId(goal.getId());
+                    goalData.setUserId(goal.getUserId());
+                    goalData.setGoalTitle(goal.getGoalTitle());
+                    goalData.setTimePeriod(goal.getTimePeriod());
+                    goalData.setPrivacy(goal.getPrivacy());
+                    goalData.setProjectIds(goal.getProjectIds());
+                    goalData.setGoalOwner(goal.getGoalOwner());
+                    
+                    // Convert member IDs to email addresses
+                    List<String> memberEmails = new ArrayList<>();
+                    if (goal.getMembers() != null) {
+                        for (String memberId : goal.getMembers()) {
+                            User memberUser = userService.getUserById(memberId);
+                            if (memberUser != null) {
+                                memberEmails.add(memberUser.getEmailId());
+                            }
+                        }
+                    }
+                    goalData.setMembers(memberEmails);
+                    
+                    // Calculate completion percentage for this goal
+                    calculateGoalCompletion(goalData, goal.getProjectIds());
+                    
+                    connectedGoals.add(goalData);
+                    
+                    log.info("Found goal '{}' connected to project {} with {}% completion", 
+                            goal.getGoalTitle(), projectId, goalData.getCompletionPercentage());
+                }
+            }
+            
+            log.info("Found {} goals connected to project {}", connectedGoals.size(), projectId);
+            
+        } catch (Exception e) {
+            log.error("Error retrieving goals for project {}: {}", projectId, e.getMessage());
+        }
+        
+        return connectedGoals;
+    }
+
 }

@@ -37,6 +37,10 @@ public class ProjectService {
     @Autowired
     private SectionService sectionService;
 
+    @Autowired
+    @Lazy
+    private GoalService goalService;
+
     public void save(Project project){
         projectRepo.save(project);
     }
@@ -625,7 +629,11 @@ public class ProjectService {
         data.put("Project start date",project.getStartDate());
         data.put("Project end date",project.getEndDate());
 
-        log.info("Project overview Retrieved");
+        // Get connected goals for this project
+        List<GoalData> connectedGoals = goalService.getGoalsByProjectId(projectId);
+        data.put("Connected Goals", connectedGoals);
+        
+        log.info("Project overview retrieved with {} connected goals", connectedGoals.size());
         return data;
 
     }
