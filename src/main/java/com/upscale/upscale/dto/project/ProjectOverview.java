@@ -11,4 +11,5 @@ public class ProjectOverview {
     String projectDescription;
     Date startDate;
     Date endDate;
+    String status;
 }

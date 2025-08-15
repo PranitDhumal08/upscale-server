@@ -159,6 +159,7 @@ public class ProjectService {
         newProject.setUserEmailid(emailId);
         newProject.setProjectName(projectCreate.getProjectName());
         newProject.setWorkspace(projectCreate.getWorkspace());
+        newProject.setStatus("On Track");
 
         // Save the project first to get an ID before setting tasks
         save(newProject);
@@ -551,6 +552,8 @@ public class ProjectService {
         if(projectOverview.getStartDate() != null) project.setStartDate(projectOverview.getStartDate());
         if(projectOverview.getEndDate() != null) project.setEndDate(projectOverview.getEndDate());
 
+        if(projectOverview.getStatus() != null) project.setStatus(projectOverview.getStatus());
+
         save(project);
         log.info("Project updated");
         return true;
@@ -568,6 +571,7 @@ public class ProjectService {
 
         data.put("Project name", project.getProjectName());
         data.put("Project description", project.getProjectDescription());
+        data.put("Status",project.getStatus());
         
         // Format teammates information for Project Roles
         HashMap<String, Object> projectRoles = new HashMap<>();

@@ -37,4 +37,6 @@ public class Project {
     private Date endDate;
 
     private String portfolioPriority;
+
+    private String status;
 }
