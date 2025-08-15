@@ -42,6 +42,9 @@ public class UserController {
     @Autowired
     private WorkspaceService workspaceService;
 
+    @Autowired
+    private com.upscale.upscale.service.project.TaskService taskService;
+
     @PostMapping("/login-user")
     public ResponseEntity<?> loginUser(@RequestBody LoginUser loginUser) {
 
@@ -270,7 +273,7 @@ public class UserController {
             response.put("Trial", user.getTrial());
             response.put("Active", user.isActive());
 
-            //response.put("Goal", goalService.getMyGoals(emailId));
+            response.put("Goal", goalService.getMyGoals(emailId));
 
             // Projects created by the user
             response.put("My Projects", userService.getProjects(emailId));
@@ -279,6 +282,10 @@ public class UserController {
             response.put("Teammate Projects", projectService.getProjectsAsTeammate(emailId));
 
             response.put("Team Mates", userService.getTeamMates(emailId));
+
+            // ✅ NEW: Add weekly and monthly statistics
+            response.put("My Week", calculateWeeklyStats(emailId, user.getId()));
+            response.put("My Month", calculateMonthlyStats(emailId, user.getId()));
 
             return new ResponseEntity<>(response, HttpStatus.OK);
 
@@ -376,6 +383,239 @@ public class UserController {
         } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Calculate weekly statistics for tasks completed and collaborators
+     * @param emailId User's email ID
+     * @param userId User's ID
+     * @return Map containing weekly statistics
+     */
+    private Map<String, Object> calculateWeeklyStats(String emailId, String userId) {
+        Map<String, Object> weeklyStats = new HashMap<>();
+        
+        try {
+            // Calculate date range for current week (Monday to Sunday)
+            java.time.LocalDate today = java.time.LocalDate.now();
+            java.time.LocalDate startOfWeek = today.with(java.time.DayOfWeek.MONDAY);
+            java.time.LocalDate endOfWeek = today.with(java.time.DayOfWeek.SUNDAY);
+            
+            // Convert to Date objects for comparison
+            java.util.Date weekStart = java.sql.Date.valueOf(startOfWeek);
+            java.util.Date weekEnd = java.sql.Date.valueOf(endOfWeek.plusDays(1)); // Include end day
+            
+            // Get all tasks assigned to or created by the user
+            java.util.List<com.upscale.upscale.entity.project.Task> userTasks = taskService.getTasksByAssignId(userId);
+            java.util.List<com.upscale.upscale.entity.project.Task> createdTasks = taskService.getTasksByCreatedId(userId);
+            
+            // Combine tasks and remove duplicates
+            java.util.Set<String> taskIds = new java.util.HashSet<>();
+            java.util.List<com.upscale.upscale.entity.project.Task> allTasks = new java.util.ArrayList<>();
+            
+            for (com.upscale.upscale.entity.project.Task task : userTasks) {
+                if (taskIds.add(task.getId())) {
+                    allTasks.add(task);
+                }
+            }
+            for (com.upscale.upscale.entity.project.Task task : createdTasks) {
+                if (taskIds.add(task.getId())) {
+                    allTasks.add(task);
+                }
+            }
+            
+            // Count completed tasks in current week
+            int weeklyCompletedTasks = 0;
+            for (com.upscale.upscale.entity.project.Task task : allTasks) {
+                if (task.isCompleted() && isTaskInDateRange(task, weekStart, weekEnd)) {
+                    weeklyCompletedTasks++;
+                }
+            }
+            
+            // Calculate collaborators (unique users from projects where current user is involved)
+            java.util.Set<String> collaborators = getUniqueCollaborators(emailId, userId);
+            
+            weeklyStats.put("tasksCompleted", weeklyCompletedTasks);
+            weeklyStats.put("collaborators", collaborators.size());
+            weeklyStats.put("period", "This Week");
+            weeklyStats.put("startDate", startOfWeek.toString());
+            weeklyStats.put("endDate", endOfWeek.toString());
+            
+            log.info("Weekly stats for user {}: {} tasks completed, {} collaborators", 
+                    emailId, weeklyCompletedTasks, collaborators.size());
+                    
+        } catch (Exception e) {
+            log.error("Error calculating weekly stats for user {}: {}", emailId, e.getMessage());
+            weeklyStats.put("tasksCompleted", 0);
+            weeklyStats.put("collaborators", 0);
+            weeklyStats.put("period", "This Week");
+            weeklyStats.put("error", "Unable to calculate weekly statistics");
+        }
+        
+        return weeklyStats;
+    }
+
+    /**
+     * Calculate monthly statistics for tasks completed and collaborators
+     * @param emailId User's email ID
+     * @param userId User's ID
+     * @return Map containing monthly statistics
+     */
+    private Map<String, Object> calculateMonthlyStats(String emailId, String userId) {
+        Map<String, Object> monthlyStats = new HashMap<>();
+        
+        try {
+            // Calculate date range for current month
+            java.time.LocalDate today = java.time.LocalDate.now();
+            java.time.LocalDate startOfMonth = today.withDayOfMonth(1);
+            java.time.LocalDate endOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+            
+            // Convert to Date objects for comparison
+            java.util.Date monthStart = java.sql.Date.valueOf(startOfMonth);
+            java.util.Date monthEnd = java.sql.Date.valueOf(endOfMonth.plusDays(1)); // Include end day
+            
+            // Get all tasks assigned to or created by the user
+            java.util.List<com.upscale.upscale.entity.project.Task> userTasks = taskService.getTasksByAssignId(userId);
+            java.util.List<com.upscale.upscale.entity.project.Task> createdTasks = taskService.getTasksByCreatedId(userId);
+            
+            // Combine tasks and remove duplicates
+            java.util.Set<String> taskIds = new java.util.HashSet<>();
+            java.util.List<com.upscale.upscale.entity.project.Task> allTasks = new java.util.ArrayList<>();
+            
+            for (com.upscale.upscale.entity.project.Task task : userTasks) {
+                if (taskIds.add(task.getId())) {
+                    allTasks.add(task);
+                }
+            }
+            for (com.upscale.upscale.entity.project.Task task : createdTasks) {
+                if (taskIds.add(task.getId())) {
+                    allTasks.add(task);
+                }
+            }
+            
+            // Count completed tasks in current month
+            int monthlyCompletedTasks = 0;
+            for (com.upscale.upscale.entity.project.Task task : allTasks) {
+                if (task.isCompleted() && isTaskInDateRange(task, monthStart, monthEnd)) {
+                    monthlyCompletedTasks++;
+                }
+            }
+            
+            // Calculate collaborators (unique users from projects where current user is involved)
+            java.util.Set<String> collaborators = getUniqueCollaborators(emailId, userId);
+            
+            monthlyStats.put("tasksCompleted", monthlyCompletedTasks);
+            monthlyStats.put("collaborators", collaborators.size());
+            monthlyStats.put("period", "This Month");
+            monthlyStats.put("startDate", startOfMonth.toString());
+            monthlyStats.put("endDate", endOfMonth.toString());
+            
+            log.info("Monthly stats for user {}: {} tasks completed, {} collaborators", 
+                    emailId, monthlyCompletedTasks, collaborators.size());
+                    
+        } catch (Exception e) {
+            log.error("Error calculating monthly stats for user {}: {}", emailId, e.getMessage());
+            monthlyStats.put("tasksCompleted", 0);
+            monthlyStats.put("collaborators", 0);
+            monthlyStats.put("period", "This Month");
+            monthlyStats.put("error", "Unable to calculate monthly statistics");
+        }
+        
+        return monthlyStats;
+    }
+
+    /**
+     * Check if a task falls within the specified date range
+     * @param task The task to check
+     * @param startDate Start of the date range
+     * @param endDate End of the date range
+     * @return true if task is in range, false otherwise
+     */
+    private boolean isTaskInDateRange(com.upscale.upscale.entity.project.Task task, java.util.Date startDate, java.util.Date endDate) {
+        java.util.Date taskDate = task.getDate();
+        if (taskDate == null) {
+            taskDate = task.getStartDate();
+        }
+        if (taskDate == null) {
+            return false; // No date information available
+        }
+        
+        return taskDate.compareTo(startDate) >= 0 && taskDate.compareTo(endDate) < 0;
+    }
+
+    /**
+     * Get unique collaborators for a user across all their projects
+     * @param emailId User's email ID
+     * @param userId User's ID
+     * @return Set of unique collaborator user IDs
+     */
+    private java.util.Set<String> getUniqueCollaborators(String emailId, String userId) {
+        java.util.Set<String> collaborators = new java.util.HashSet<>();
+        
+        try {
+            // Get projects created by the user
+            java.util.HashMap<String, java.util.List<String>> myProjects = userService.getProjects(emailId);
+            
+            // Get projects where user is a teammate
+            java.util.HashMap<String, String> teammateProjects = projectService.getProjectsAsTeammate(emailId);
+            
+            // Process projects created by user
+            if (myProjects != null) {
+                for (String projectId : myProjects.keySet()) {
+                    com.upscale.upscale.entity.project.Project project = projectService.getProject(projectId);
+                    if (project != null && project.getTeammates() != null) {
+                        for (java.util.Map.Entry<String, String[]> entry : project.getTeammates().entrySet()) {
+                            String[] teammateInfo = entry.getValue();
+                            if (teammateInfo.length > 2) {
+                                String teammateEmail = teammateInfo[2]; // Email is at index 2
+                                if (!teammateEmail.equals(emailId)) { // Don't count self
+                                    User collaborator = userService.getUser(teammateEmail);
+                                    if (collaborator != null) {
+                                        collaborators.add(collaborator.getId());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Process projects where user is a teammate
+            if (teammateProjects != null) {
+                for (String projectId : teammateProjects.keySet()) {
+                    com.upscale.upscale.entity.project.Project project = projectService.getProject(projectId);
+                    if (project != null) {
+                        // Add project owner as collaborator
+                        if (!project.getUserEmailid().equals(emailId)) {
+                            User owner = userService.getUser(project.getUserEmailid());
+                            if (owner != null) {
+                                collaborators.add(owner.getId());
+                            }
+                        }
+                        
+                        // Add other teammates as collaborators
+                        if (project.getTeammates() != null) {
+                            for (java.util.Map.Entry<String, String[]> entry : project.getTeammates().entrySet()) {
+                                String[] teammateInfo = entry.getValue();
+                                if (teammateInfo.length > 2) {
+                                    String teammateEmail = teammateInfo[2]; // Email is at index 2
+                                    if (!teammateEmail.equals(emailId)) { // Don't count self
+                                        User collaborator = userService.getUser(teammateEmail);
+                                        if (collaborator != null) {
+                                            collaborators.add(collaborator.getId());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error calculating collaborators for user {}: {}", emailId, e.getMessage());
+        }
+        
+        return collaborators;
     }
 
 }

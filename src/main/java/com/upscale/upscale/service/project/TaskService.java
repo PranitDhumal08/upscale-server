@@ -309,6 +309,10 @@ public class TaskService {
         return taskRepo.findByProjectIdsContaining(projectId);
    }
 
+   public List<Task> getTasksByCreatedId(String createdId) {
+        return taskRepo.findByCreatedId(createdId);
+   }
+
    /**
     * Helper method to get Task objects from a list of task IDs
     */
