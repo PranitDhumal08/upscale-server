@@ -16,4 +16,5 @@ public class Message {
     private String body;
     private String sender;
     private List<String> recipients = new ArrayList<>();
+    private String projectId; // Project context for the message
 }

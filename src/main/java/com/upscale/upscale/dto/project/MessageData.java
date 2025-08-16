@@ -10,5 +10,6 @@ public class MessageData {
     private String subject;
     private String body;
     private String sender;
-    private List<String> recipients = new ArrayList<>();
+    private List<String> recipients = new ArrayList<>(); // Now expects email addresses only
+    private String projectId; // Project context for the message
 }

@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface MessageRepo extends MongoRepository<Message, String> {
     List<Message> findByRecipientsContaining(String attr0);
+    List<Message> findByProjectId(String projectId);
 }

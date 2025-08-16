@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -68,34 +69,39 @@ public class MessageController {
 
             HashMap<String, Object> response = new HashMap<>();
 
-            List<Message> messages = messageService.getMessagesForUser(projectId);
+            // Get enriched messages for the specific project (includes sender names)
+            List<java.util.Map<String, Object>> enrichedMessages = messageService.getEnrichedMessagesForProject(projectId);
 
-            if(messages != null && messages.size() > 0) {
+            if(enrichedMessages != null && !enrichedMessages.isEmpty()) {
                 response.put("status", "success");
-                response.put("messages", messages);
+                response.put("messages", enrichedMessages);
+                response.put("projectId", projectId);
+                response.put("count", enrichedMessages.size());
+
+                log.info("Retrieved {} enriched messages for project {} requested by user {}", 
+                        enrichedMessages.size(), projectId, email);
 
                 return new ResponseEntity<>(response, HttpStatus.OK);
             }
             else{
+                response.put("status", "success");
+                response.put("messages", new ArrayList<>());
+                response.put("projectId", projectId);
+                response.put("count", 0);
+                response.put("message", "No messages found for this project.");
 
-                List<Message> messagesForUser = messageService.getMessagesForUser(email);
+                log.info("No messages found for project {} requested by user {}", projectId, email);
 
-                if(messagesForUser != null && messagesForUser.size() > 0) {
-                    response.put("status", "success");
-                    response.put("messages", messagesForUser);
-                    return new ResponseEntity<>(response, HttpStatus.OK);
-
-                }
-                else{
-                    response.put("status", "failure");
-                    response.put("message", "No such message.");
-                    return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-                }
+                return new ResponseEntity<>(response, HttpStatus.OK);
             }
 
         }catch (Exception e) {
-            log.error("Error while getting message", e);
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("Error while getting messages for project {}: {}", projectId, e.getMessage());
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "An error occurred while retrieving messages.");
+            errorResponse.put("projectId", projectId);
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
     }
