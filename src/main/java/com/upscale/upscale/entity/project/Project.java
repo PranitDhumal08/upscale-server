@@ -3,6 +3,7 @@ package com.upscale.upscale.entity.project;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -15,6 +16,8 @@ public class Project {
 
     @Id
     private String id; //project id
+    
+    @Field("userEmailid")
     private String userEmailid; //main person mail id
     private String projectName; //project name
     private String projectDescription; //description
