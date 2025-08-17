@@ -618,4 +618,117 @@ public class UserController {
         return collaborators;
     }
 
+    /**
+     * Delete user account and all associated data
+     * This endpoint handles complete user deletion including cascading deletes
+     */
+    @DeleteMapping("/delete-account")
+    public ResponseEntity<?> deleteUserAccount(HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (userService.deleteUser(emailId)) {
+                response.put("message", "User account and all associated data deleted successfully");
+                response.put("email", emailId);
+                response.put("status", "success");
+                log.info("User account deleted successfully: {}", emailId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Failed to delete user account");
+                response.put("email", emailId);
+                response.put("status", "error");
+                log.error("Failed to delete user account: {}", emailId);
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception e) {
+            HashMap<String, Object> response = new HashMap<>();
+            response.put("message", "Error occurred while deleting user account: " + e.getMessage());
+            response.put("status", "error");
+            log.error("Error deleting user account: {}", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Delete user by email ID (Admin endpoint)
+     * This endpoint allows deletion of any user by email ID
+     */
+    @DeleteMapping("/delete-user/{emailId}")
+    public ResponseEntity<?> deleteUserByEmail(@PathVariable String emailId) {
+        try {
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (!userService.checkUserExists(emailId)) {
+                response.put("message", "User not found");
+                response.put("email", emailId);
+                response.put("status", "error");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            if (userService.deleteUser(emailId)) {
+                response.put("message", "User deleted successfully");
+                response.put("email", emailId);
+                response.put("status", "success");
+                log.info("User deleted successfully by admin: {}", emailId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Failed to delete user");
+                response.put("email", emailId);
+                response.put("status", "error");
+                log.error("Failed to delete user by admin: {}", emailId);
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception e) {
+            HashMap<String, Object> response = new HashMap<>();
+            response.put("message", "Error occurred while deleting user: " + e.getMessage());
+            response.put("status", "error");
+            log.error("Error deleting user by admin: {}", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Delete user by user ID (Admin endpoint)
+     * This endpoint allows deletion of any user by user ID
+     */
+    @DeleteMapping("/delete-user-by-id/{userId}")
+    public ResponseEntity<?> deleteUserById(@PathVariable String userId) {
+        try {
+            HashMap<String, Object> response = new HashMap<>();
+
+            User user = userService.getUserById(userId);
+            if (user == null) {
+                response.put("message", "User not found");
+                response.put("userId", userId);
+                response.put("status", "error");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            if (userService.deleteUserById(userId)) {
+                response.put("message", "User deleted successfully");
+                response.put("userId", userId);
+                response.put("email", user.getEmailId());
+                response.put("status", "success");
+                log.info("User deleted successfully by admin (ID: {}): {}", userId, user.getEmailId());
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("message", "Failed to delete user");
+                response.put("userId", userId);
+                response.put("status", "error");
+                log.error("Failed to delete user by admin (ID: {})", userId);
+                return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception e) {
+            HashMap<String, Object> response = new HashMap<>();
+            response.put("message", "Error occurred while deleting user: " + e.getMessage());
+            response.put("status", "error");
+            log.error("Error deleting user by admin (ID: {}): {}", userId, e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }

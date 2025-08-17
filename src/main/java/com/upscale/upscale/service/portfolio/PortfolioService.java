@@ -390,4 +390,60 @@ public class PortfolioService {
         return false;
     }
 
+    /**
+     * Delete a portfolio and clean up related data
+     * This method is used during user deletion to remove portfolios owned by the user
+     */
+    public boolean deletePortfolio(String portfolioId) {
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepo.findById(portfolioId);
+            if (portfolioOpt.isEmpty()) {
+                log.error("Portfolio not found with id: {}", portfolioId);
+                return false;
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            log.info("Starting deletion of portfolio: {} (ID: {})", portfolio.getPortfolioName(), portfolioId);
+
+            // Remove portfolio from other portfolios that might contain it
+            removePortfolioFromOtherPortfolios(portfolioId);
+
+            // Delete the portfolio
+            portfolioRepo.delete(portfolio);
+            log.info("Successfully deleted portfolio: {}", portfolio.getPortfolioName());
+            
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error deleting portfolio {}: {}", portfolioId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Remove portfolio from other portfolios that might contain it as a project
+     */
+    private void removePortfolioFromOtherPortfolios(String portfolioId) {
+        try {
+            List<Portfolio> allPortfolios = portfolioRepo.findAll();
+            
+            for (Portfolio portfolio : allPortfolios) {
+                if (portfolio.getProjectsIds() != null && portfolio.getProjectsIds().contains(portfolioId)) {
+                    portfolio.getProjectsIds().remove(portfolioId);
+                    
+                    // Also remove from attributes if present
+                    if (portfolio.getAttributes() != null) {
+                        portfolio.getAttributes().remove(portfolioId);
+                    }
+                    
+                    save(portfolio);
+                    log.info("Removed portfolio {} from portfolio: {}", portfolioId, portfolio.getPortfolioName());
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error removing portfolio {} from other portfolios: {}", portfolioId, e.getMessage());
+        }
+    }
+
 }

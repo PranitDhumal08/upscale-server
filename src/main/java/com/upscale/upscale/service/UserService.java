@@ -328,4 +328,114 @@ public class UserService {
         
         return trialInfo;
     }
+
+    /**
+     * Delete a user and all related data
+     * This method handles cascading deletes for projects, portfolios, and workspaces
+     */
+    public boolean deleteUser(String emailId) {
+        try {
+            User user = getUser(emailId);
+            if (user == null) {
+                log.error("User not found for deletion: {}", emailId);
+                return false;
+            }
+
+            String userId = user.getId();
+            log.info("Starting deletion process for user: {} (ID: {})", emailId, userId);
+
+            // 1. Delete all projects created by the user
+            List<String> projectIds = user.getProjects();
+            if (projectIds != null && !projectIds.isEmpty()) {
+                for (String projectId : projectIds) {
+                    try {
+                        projectService.deleteProject(projectId);
+                        log.info("Deleted project: {}", projectId);
+                    } catch (Exception e) {
+                        log.error("Error deleting project {}: {}", projectId, e.getMessage());
+                    }
+                }
+            }
+
+            // 2. Remove user from projects where they are teammates
+            try {
+                projectService.removeUserFromAllProjects(emailId);
+                log.info("Removed user from all teammate projects");
+            } catch (Exception e) {
+                log.error("Error removing user from teammate projects: {}", e.getMessage());
+            }
+
+            // 3. Delete all portfolios owned by the user
+            try {
+                List<Portfolio> userPortfolios = portfolioService.getPortFolio(emailId);
+                if (userPortfolios != null && !userPortfolios.isEmpty()) {
+                    for (Portfolio portfolio : userPortfolios) {
+                        portfolioService.deletePortfolio(portfolio.getId());
+                        log.info("Deleted portfolio: {}", portfolio.getId());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error deleting user portfolios: {}", e.getMessage());
+            }
+
+            // 4. Delete workspace owned by the user
+            try {
+                Workspace workspace = workspaceService.getWorkspace(userId);
+                if (workspace != null) {
+                    workspaceService.deleteWorkspace(workspace.getId());
+                    log.info("Deleted workspace: {}", workspace.getId());
+                }
+            } catch (Exception e) {
+                log.error("Error deleting user workspace: {}", e.getMessage());
+            }
+
+            // 5. Remove user from other users' teammates lists
+            try {
+                removeUserFromTeammatesLists(emailId);
+                log.info("Removed user from all teammates lists");
+            } catch (Exception e) {
+                log.error("Error removing user from teammates lists: {}", e.getMessage());
+            }
+
+            // 6. Finally, delete the user
+            userRepo.delete(user);
+            log.info("Successfully deleted user: {}", emailId);
+            
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error deleting user {}: {}", emailId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Remove user from all other users' teammates lists
+     */
+    private void removeUserFromTeammatesLists(String emailId) {
+        List<User> allUsers = getAllUsers();
+        for (User user : allUsers) {
+            if (user.getTeammates() != null && user.getTeammates().contains(emailId)) {
+                user.getTeammates().remove(emailId);
+                save(user);
+                log.debug("Removed {} from {}'s teammates list", emailId, user.getEmailId());
+            }
+        }
+    }
+
+    /**
+     * Delete user by ID
+     */
+    public boolean deleteUserById(String userId) {
+        try {
+            User user = getUserById(userId);
+            if (user != null) {
+                return deleteUser(user.getEmailId());
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("Error deleting user by ID {}: {}", userId, e.getMessage());
+            return false;
+        }
+    }
 }

@@ -335,4 +335,46 @@ public class WorkspaceService {
         }
         return false;
     }
+
+    /**
+     * Delete a workspace and all its associated knowledge entries
+     * This method is used during user deletion to clean up workspace data
+     */
+    public boolean deleteWorkspace(String workspaceId) {
+        try {
+            Optional<Workspace> workspaceOpt = workspaceRepo.findById(workspaceId);
+            if (workspaceOpt.isEmpty()) {
+                log.error("Workspace not found with id: {}", workspaceId);
+                return false;
+            }
+
+            Workspace workspace = workspaceOpt.get();
+            log.info("Starting deletion of workspace: {} (ID: {})", workspace.getName(), workspaceId);
+
+            // Delete all knowledge entries associated with this workspace
+            if (workspace.getKnowledgeId() != null && !workspace.getKnowledgeId().isEmpty()) {
+                for (String knowledgeId : workspace.getKnowledgeId()) {
+                    try {
+                        Optional<Knowledge> knowledgeOpt = knowledgeRepo.findById(knowledgeId);
+                        if (knowledgeOpt.isPresent()) {
+                            knowledgeRepo.delete(knowledgeOpt.get());
+                            log.info("Deleted knowledge entry: {}", knowledgeId);
+                        }
+                    } catch (Exception e) {
+                        log.error("Error deleting knowledge entry {}: {}", knowledgeId, e.getMessage());
+                    }
+                }
+            }
+
+            // Delete the workspace
+            workspaceRepo.delete(workspace);
+            log.info("Successfully deleted workspace: {}", workspace.getName());
+            
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error deleting workspace {}: {}", workspaceId, e.getMessage());
+            return false;
+        }
+    }
 }

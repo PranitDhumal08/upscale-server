@@ -781,4 +781,51 @@ public class ProjectService {
             return null;
         }
     }
+
+    /**
+     * Remove user from all projects where they are teammates
+     * This method is used during user deletion to clean up project memberships
+     */
+    public void removeUserFromAllProjects(String emailId) {
+        try {
+            List<Project> allProjects = projectRepo.findAll();
+            
+            for (Project project : allProjects) {
+                if (project.getTeammates() != null) {
+                    boolean userRemoved = false;
+                    
+                    // Create a new HashMap to avoid concurrent modification
+                    HashMap<String, String[]> updatedTeammates = new HashMap<>();
+                    
+                    for (Map.Entry<String, String[]> entry : project.getTeammates().entrySet()) {
+                        String[] teammateInfo = entry.getValue();
+                        
+                        // Check if this teammate entry contains the user's email
+                        boolean isUserToRemove = false;
+                        if (teammateInfo.length > 2 && teammateInfo[2].equals(emailId)) {
+                            isUserToRemove = true;
+                            userRemoved = true;
+                        }
+                        
+                        // Only keep teammates that are not the user being deleted
+                        if (!isUserToRemove) {
+                            updatedTeammates.put(entry.getKey(), teammateInfo);
+                        }
+                    }
+                    
+                    // Update the project if user was removed
+                    if (userRemoved) {
+                        project.setTeammates(updatedTeammates);
+                        save(project);
+                        log.info("Removed user {} from project: {}", emailId, project.getProjectName());
+                    }
+                }
+            }
+            
+            log.info("Completed removal of user {} from all projects", emailId);
+            
+        } catch (Exception e) {
+            log.error("Error removing user {} from projects: {}", emailId, e.getMessage());
+        }
+    }
 }
