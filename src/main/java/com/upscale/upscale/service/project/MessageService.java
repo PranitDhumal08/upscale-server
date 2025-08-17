@@ -3,14 +3,19 @@ package com.upscale.upscale.service.project;
 import com.upscale.upscale.dto.project.MessageData;
 import com.upscale.upscale.entity.project.Message;
 import com.upscale.upscale.entity.user.User;
+import com.upscale.upscale.entity.portfolio.Portfolio;
+import com.upscale.upscale.entity.workspace.Workspace;
 import com.upscale.upscale.repository.MessageRepo;
 import com.upscale.upscale.service.UserService;
+import com.upscale.upscale.service.portfolio.PortfolioService;
+import com.upscale.upscale.service.Workspace.WorkspaceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -27,6 +32,12 @@ public class MessageService {
 
     @Autowired
     private ProjectService projectService;
+
+    @Autowired
+    private PortfolioService portfolioService;
+
+    @Autowired
+    private WorkspaceService workspaceService;
 
     public boolean sendMessage(String emailId, MessageData messageData) {
 
@@ -48,16 +59,18 @@ public class MessageService {
         
         List<String> validRecipients = new ArrayList<>();
         
-        // If recipients is empty, send to all project members
+        // If recipients is empty, send to all members with fallback logic: Project -> Portfolio -> Workspace
         if (messageData.getRecipients() == null || messageData.getRecipients().isEmpty()) {
-            log.info("Recipients list is empty, sending message to all project members");
+            log.info("Recipients list is empty, attempting to find members using fallback logic");
             
             if (messageData.getProjectId() != null && !messageData.getProjectId().isEmpty()) {
                 try {
-                    // Get project and all its members
+                    // Step 1: Try to find as Project
                     com.upscale.upscale.entity.project.Project project = projectService.getProject(messageData.getProjectId());
                     
                     if (project != null) {
+                        log.info("Found as Project: {}", project.getProjectName());
+                        
                         // Add project owner
                         if (project.getUserEmailid() != null && !project.getUserEmailid().equals(emailId)) {
                             validRecipients.add(project.getUserEmailid());
@@ -80,15 +93,84 @@ public class MessageService {
                         
                         log.info("Message sent to all {} project members", validRecipients.size());
                     } else {
-                        log.warn("Project not found with ID: {}", messageData.getProjectId());
-                        return false;
+                        // Step 2: Try to find as Portfolio
+                        log.info("Project not found, trying as Portfolio with ID: {}", messageData.getProjectId());
+                        Optional<Portfolio> portfolioOpt = portfolioService.getPortfolio(messageData.getProjectId());
+                        
+                        if (portfolioOpt.isPresent()) {
+                            Portfolio portfolio = portfolioOpt.get();
+                            log.info("Found as Portfolio: {}", portfolio.getPortfolioName());
+                            
+                            // Add portfolio owner
+                            User portfolioOwner = userService.getUserById(portfolio.getOwnerId());
+                            if (portfolioOwner != null && !portfolioOwner.getEmailId().equals(emailId)) {
+                                validRecipients.add(portfolioOwner.getEmailId());
+                                inboxService.sendProjectMessage(message, emailId, portfolioOwner.getEmailId());
+                            }
+                            
+                            // Add all teammates from the portfolio
+                            if (portfolio.getTeammates() != null) {
+                                for (String teammateId : portfolio.getTeammates()) {
+                                    User teammate = userService.getUserById(teammateId);
+                                    if (teammate != null && !teammate.getEmailId().equals(emailId)) {
+                                        validRecipients.add(teammate.getEmailId());
+                                        inboxService.sendProjectMessage(message, emailId, teammate.getEmailId());
+                                    }
+                                }
+                            }
+                            
+                            log.info("Message sent to all {} portfolio members", validRecipients.size());
+                        } else {
+                            // Step 3: Try to find as Workspace
+                            log.info("Portfolio not found, trying as Workspace with ID: {}", messageData.getProjectId());
+                            
+                            // First try to get workspace by ID directly
+                            Workspace workspace = null;
+                            try {
+                                // Since WorkspaceService doesn't have getById, we need to find by user
+                                // Let's try to find workspace that contains this ID in some way
+                                User currentUser = userService.getUser(emailId);
+                                if (currentUser != null) {
+                                    workspace = workspaceService.getWorkspace(currentUser.getId());
+                                }
+                            } catch (Exception e) {
+                                log.warn("Error getting workspace: {}", e.getMessage());
+                            }
+                            
+                            if (workspace != null) {
+                                log.info("Found Workspace: {}", workspace.getName());
+                                
+                                // Add workspace owner (userId)
+                                User workspaceOwner = userService.getUserById(workspace.getUserId());
+                                if (workspaceOwner != null && !workspaceOwner.getEmailId().equals(emailId)) {
+                                    validRecipients.add(workspaceOwner.getEmailId());
+                                    inboxService.sendProjectMessage(message, emailId, workspaceOwner.getEmailId());
+                                }
+                                
+                                // Add all members from the workspace
+                                if (workspace.getMembers() != null) {
+                                    for (String memberId : workspace.getMembers()) {
+                                        User member = userService.getUserById(memberId);
+                                        if (member != null && !member.getEmailId().equals(emailId)) {
+                                            validRecipients.add(member.getEmailId());
+                                            inboxService.sendProjectMessage(message, emailId, member.getEmailId());
+                                        }
+                                    }
+                                }
+                                
+                                log.info("Message sent to all {} workspace members", validRecipients.size());
+                            } else {
+                                log.warn("No Project, Portfolio, or Workspace found with ID: {}", messageData.getProjectId());
+                                return false;
+                            }
+                        }
                     }
                 } catch (Exception e) {
-                    log.error("Error getting project members for project {}: {}", messageData.getProjectId(), e.getMessage());
+                    log.error("Error getting members for ID {}: {}", messageData.getProjectId(), e.getMessage());
                     return false;
                 }
             } else {
-                log.warn("Project ID is required when recipients list is empty");
+                log.warn("Project/Portfolio/Workspace ID is required when recipients list is empty");
                 return false;
             }
         } else {
@@ -108,7 +190,7 @@ public class MessageService {
         message.setRecipients(validRecipients);
         messageRepo.save(message);
 
-        log.info("Message sent from {} to {} recipients in project {}", 
+        log.info("Message sent from {} to {} recipients for ID {}", 
                 emailId, validRecipients.size(), messageData.getProjectId());
 
         return true;
