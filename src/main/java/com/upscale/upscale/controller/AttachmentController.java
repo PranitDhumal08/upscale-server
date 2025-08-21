@@ -111,6 +111,7 @@ public class AttachmentController {
                 return Map.of(
                         "fileId", m.get("id"),
                         "projectId", m.get("projectId"),
+                        "uploadDate", m.get("uploadDate"),
                         "description", m.get("description"),
                         "fileType", m.get("fileType"),
                         "role", m.get("role"),

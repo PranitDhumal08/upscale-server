@@ -214,6 +214,7 @@ public class FileAttachmentService {
             item.put("id", fa.getId());
             item.put("description", fa.getDescription());
             item.put("fileType", fa.getFileType());
+            item.put("uploadDate", fa.getUploadDate());
             item.put("projectId", fa.getProjectId());
             item.put("role", roleById.get(fa.getId()));
             item.put("originalFileName", fa.getOriginalFileName());
