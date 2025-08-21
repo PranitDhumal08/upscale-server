@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/attachments")
@@ -73,6 +74,75 @@ public class AttachmentController {
         } catch (Exception e) {
             log.error("Upload failed", e);
             return new ResponseEntity<>("Upload failed: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteAttachment(HttpServletRequest request, @PathVariable("id") String id) {
+        try {
+            String requesterEmail = tokenService.getEmailFromToken(request);
+            fileAttachmentService.deleteAttachment(id, requesterEmail);
+            return new ResponseEntity<>(Map.of("message", "Deleted", "status", "success"), HttpStatus.OK);
+        } catch (IllegalArgumentException ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            log.error("Delete attachment failed", e);
+            return new ResponseEntity<>("Failed to delete attachment", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/edit/{id}")
+    public ResponseEntity<?> editAttachment(
+            HttpServletRequest request,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            String requesterEmail = tokenService.getEmailFromToken(request);
+
+            // Accept either a CSV string or an array for receiverEmails
+            Object recvObj = payload.get("receiverEmails");
+            List<String> receiverEmails;
+            if (recvObj instanceof String) {
+                String csv = (String) recvObj;
+                receiverEmails = (csv == null || csv.isBlank()) ? List.of() : Arrays.stream(csv.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+            } else if (recvObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Object> raw = (List<Object>) recvObj;
+                receiverEmails = raw.stream().filter(Objects::nonNull).map(Object::toString)
+                        .map(String::trim).filter(s -> !s.isEmpty()).toList();
+            } else {
+                receiverEmails = List.of();
+            }
+
+            String description = null;
+            if (payload.containsKey("description") && payload.get("description") != null) {
+                description = payload.get("description").toString();
+            }
+
+            FileAttachment updated = fileAttachmentService.updateRecipientsAndDescription(
+                    id,
+                    requesterEmail,
+                    receiverEmails,
+                    description
+            );
+
+            // Minimal response
+            Map<String, Object> resp = Map.of(
+                    "id", updated.getId(),
+                    "projectId", updated.getProjectId(),
+                    "description", updated.getDescription(),
+                    "receiverIds", updated.getReceiverIds()
+            );
+            return new ResponseEntity<>(resp, HttpStatus.OK);
+        } catch (IllegalArgumentException ex) {
+            return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            log.error("Edit attachment failed", e);
+            return new ResponseEntity<>("Failed to edit attachment", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

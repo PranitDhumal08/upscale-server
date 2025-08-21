@@ -100,6 +100,74 @@ public class FileAttachmentService {
     }
 
     /**
+     * Update receiver list (by emails) and description of an existing attachment.
+     * Only the sender is allowed to perform this update.
+     */
+    public FileAttachment updateRecipientsAndDescription(String attachmentId,
+                                                         String requesterEmail,
+                                                         List<String> receiverEmails,
+                                                         String description) {
+        Optional<FileAttachment> opt = fileAttachmentRepo.findById(attachmentId);
+        if (opt.isEmpty()) {
+            throw new IllegalArgumentException("Attachment not found: " + attachmentId);
+        }
+        FileAttachment att = opt.get();
+
+        // Resolve requester and enforce sender-only edit
+        User requester = userService.getUser(requesterEmail);
+        if (requester == null) {
+            throw new IllegalArgumentException("Requester not found for email: " + requesterEmail);
+        }
+        if (att.getSenderId() == null || !att.getSenderId().equals(requester.getId())) {
+            throw new IllegalArgumentException("Only the sender can edit recipients/description");
+        }
+
+        // Resolve receivers from emails to userIds (skip sender and duplicates)
+        List<String> receiverIds = new ArrayList<>();
+        if (receiverEmails != null) {
+            for (String email : receiverEmails) {
+                if (email == null || email.isBlank()) continue;
+                User u = userService.getUser(email.trim());
+                if (u != null) {
+                    if (!u.getId().equals(requester.getId()) && !receiverIds.contains(u.getId())) {
+                        receiverIds.add(u.getId());
+                    }
+                } else {
+                    log.warn("Receiver not found for email: {}", email);
+                }
+            }
+        }
+        att.setReceiverIds(receiverIds);
+
+        if (description != null) {
+            att.setDescription(description);
+        }
+
+        return fileAttachmentRepo.save(att);
+    }
+
+    /**
+     * Delete an attachment. Only the sender is allowed to delete.
+     */
+    public void deleteAttachment(String attachmentId, String requesterEmail) {
+        Optional<FileAttachment> opt = fileAttachmentRepo.findById(attachmentId);
+        if (opt.isEmpty()) {
+            throw new IllegalArgumentException("Attachment not found: " + attachmentId);
+        }
+        FileAttachment att = opt.get();
+
+        User requester = userService.getUser(requesterEmail);
+        if (requester == null) {
+            throw new IllegalArgumentException("Requester not found for email: " + requesterEmail);
+        }
+        if (att.getSenderId() == null || !att.getSenderId().equals(requester.getId())) {
+            throw new IllegalArgumentException("Only the sender can delete this attachment");
+        }
+
+        fileAttachmentRepo.deleteById(attachmentId);
+    }
+
+    /**
      * List attachments where the given userId is a receiver.
      * Returns lightweight maps: id, description, fileType, originalFileName, uploadDate, projectId
      */
