@@ -27,4 +27,5 @@ public class Task {
     private Date startDate;
     private Date endDate;
 
+    private List<String> subTaskIds = new ArrayList<>();
 }

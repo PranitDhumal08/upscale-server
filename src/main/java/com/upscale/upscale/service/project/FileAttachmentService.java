@@ -288,8 +288,7 @@ public class FileAttachmentService {
     }
 
     private String getExtension(String filename) {
-        int i = filename.lastIndexOf('.')
-                ;
+        int i = filename.lastIndexOf('.');
         return (i >= 0 && i < filename.length() - 1) ? filename.substring(i + 1) : "";
     }
 

@@ -3,7 +3,6 @@ com/upscale/upscale/service/portfolio/FieldService.class
 com/upscale/upscale/service/project/TaskService.class
 com/upscale/upscale/repository/TaskRepo.class
 com/upscale/upscale/repository/InboxRepo.class
-com/upscale/upscale/config/MongoConfig$ArrayListToStringConverter.class
 com/upscale/upscale/service/project/GoalService.class
 com/upscale/upscale/entity/project/Project.class
 com/upscale/upscale/dto/user/UserCreate.class

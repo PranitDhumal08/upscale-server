@@ -3,6 +3,7 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/CorsConfig.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/MongoConfig.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/SecurityConfig.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/AttachmentController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/UserController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/WorkspaceController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/portfolio/PortfolioController.java
@@ -15,6 +16,7 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/project/MessageController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/project/PeopleController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/project/ProjectController.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/project/SubTaskController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/project/TaskController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/portfolio/CreatePortFolio.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/portfolio/FieldAttribute.java
@@ -30,6 +32,7 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/ProjectData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/ProjectOverview.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/SectionData.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/SubTaskData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/TaskData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/user/LoginUser.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/user/UserCreate.java
@@ -40,16 +43,19 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/Goal.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/portfolio/Fields.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/portfolio/Portfolio.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/FileAttachment.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/Inbox.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/Message.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/People.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/Project.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/Section.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/SubTask.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/project/Task.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/user/User.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/workspace/Knowledge.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/entity/workspace/Workspace.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/FieldsRepo.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/FileAttachmentRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/GoalRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/InboxRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/KnowledgeRepo.java
@@ -57,6 +63,7 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/PeopleRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/PortfolioRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/ProjectRepo.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/SubTaskRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/TaskRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/UserRepo.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/repository/WorkspaceRepo.java
@@ -71,10 +78,12 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/portfolio/FieldService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/portfolio/PortfolioService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/EmailService.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/FileAttachmentService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/GoalService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/InboxService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/MessageService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/PeopleService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/ProjectService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/SectionService.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/SubTaskService.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/service/project/TaskService.java

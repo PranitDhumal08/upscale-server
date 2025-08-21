@@ -7,6 +7,8 @@ import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Section;
 import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.user.User;
+import com.upscale.upscale.entity.project.SubTask;
+import com.upscale.upscale.repository.SubTaskRepo;
 import com.upscale.upscale.service.project.ProjectService;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
@@ -39,6 +41,8 @@ public class ProjectController {
     private UserService userService;
     @Autowired
     private TaskService taskService;
+    @Autowired
+    private SubTaskRepo subTaskRepo;
 
     @PostMapping("/create-project")
     public ResponseEntity<?> createProject(HttpServletRequest request, @RequestBody ProjectCreate projectCreate) {
@@ -129,7 +133,7 @@ public class ProjectController {
                 sectionMap.put("sectionId", section.getId());
                 sectionMap.put("sectionName", section.getSectionName());
 
-                List<Task> enrichedTasks = new ArrayList<>();
+                List<Map<String, Object>> enrichedTasks = new ArrayList<>();
                 for (String taskId : section.getTaskIds()) {
                     Task task = taskService.getTask(taskId);
                     if (task != null) {
@@ -143,8 +147,67 @@ public class ProjectController {
                                 nameList.add(userId);
                             }
                         }
-                        task.setAssignId(nameList);
-                        enrichedTasks.add(task);
+                        // Build task map without subTaskIds; include resolved subtasks instead
+                        Map<String, Object> taskMap = new HashMap<>();
+                        taskMap.put("id", task.getId());
+                        taskMap.put("createdId", task.getCreatedId());
+                        taskMap.put("projectIds", task.getProjectIds());
+                        taskMap.put("taskName", task.getTaskName());
+                        taskMap.put("priority", task.getPriority());
+                        taskMap.put("status", task.getStatus());
+                        taskMap.put("group", task.getGroup());
+                        taskMap.put("date", task.getDate());
+                        taskMap.put("description", task.getDescription());
+                        taskMap.put("assignId", nameList);
+                        taskMap.put("startDate", task.getStartDate());
+                        taskMap.put("endDate", task.getEndDate());
+                        taskMap.put("completed", task.isCompleted());
+
+                        // Resolve subtasks and compute progressBar
+                        List<Map<String, Object>> subTasks = new ArrayList<>();
+                        int completedCount = 0;
+                        int totalCount = 0;
+                        if (task.getSubTaskIds() != null) {
+                            for (String subTaskId : task.getSubTaskIds()) {
+                                try {
+                                    SubTask st = subTaskRepo.findById(subTaskId).orElse(null);
+                                    if (st != null) {
+                                        Map<String, Object> stMap = new HashMap<>();
+                                        // Include subtask id as requested
+                                        stMap.put("id", st.getId());
+                                        stMap.put("createdId", st.getCreatedId());
+                                        stMap.put("projectIds", st.getProjectIds());
+                                        stMap.put("taskName", st.getTaskName());
+                                        stMap.put("priority", st.getPriority());
+                                        stMap.put("status", st.getStatus());
+                                        stMap.put("group", st.getGroup());
+                                        stMap.put("date", st.getDate());
+                                        stMap.put("description", st.getDescription());
+                                        stMap.put("assignId", st.getAssignId());
+                                        stMap.put("startDate", st.getStartDate());
+                                        stMap.put("endDate", st.getEndDate());
+                                        stMap.put("completed", st.isCompleted());
+                                        subTasks.add(stMap);
+                                        totalCount++;
+                                        if (st.isCompleted()) completedCount++;
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        int progress;
+                        if (task.isCompleted()) {
+                            progress = 100;
+                        } else {
+                            progress = (totalCount > 0) ? (int) Math.floor((completedCount * 100.0) / totalCount) : 0;
+                            if (progress == 100) {
+                                // If parent is not completed, do not show full 100 even if all subtasks are done
+                                progress = 99;
+                            }
+                        }
+                        taskMap.put("progressBar", progress);
+                        taskMap.put("subTasks", subTasks);
+
+                        enrichedTasks.add(taskMap);
                     }
                 }
 
