@@ -444,7 +444,7 @@ public class TaskService {
     /**
      * Update task fields via UpdateTaskRequest alias used by PUT /api/task/update/{task-id}
      * - assign: list of assignee email IDs -> resolved to user IDs
-     * - dueDate -> maps to Task.endDate
+     * - startDate, endDate
      * - priority, status
      */
     public boolean updateTaskFields(String taskId, UpdateTaskRequest req, String requesterEmail) {
@@ -465,7 +465,9 @@ public class TaskService {
             task.setAssignId(resolvedIds);
         }
 
-        if (req.getDueDate() != null) task.setEndDate(req.getDueDate());
+        // Update scheduling fields if provided
+        if (req.getStartDate() != null) task.setStartDate(req.getStartDate());
+        if (req.getEndDate() != null) task.setEndDate(req.getEndDate());
         if (req.getPriority() != null) task.setPriority(req.getPriority());
         if (req.getStatus() != null) task.setStatus(req.getStatus());
 
