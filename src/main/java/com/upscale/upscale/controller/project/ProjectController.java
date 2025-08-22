@@ -322,14 +322,20 @@ public class ProjectController {
                             }
                         }
                         int progress;
-                        if (task.isCompleted()) {
-                            progress = 100;
-                        } else {
-                            progress = (totalCount > 0) ? (int) Math.floor((completedCount * 100.0) / totalCount) : 0;
-                            if (progress == 100) {
-                                // If parent is not completed, do not show full 100 even if all subtasks are done
+                        if (totalCount > 0) {
+                            // Progress is based on subtasks when they exist
+                            progress = (int) Math.floor((completedCount * 100.0) / totalCount);
+                            // If parent task marked complete but not all subtasks are complete, cap at 99
+                            if (progress < 100 && task.isCompleted()) {
                                 progress = 99;
                             }
+                            // If all subtasks complete but parent not marked complete, cap at 99
+                            if (progress == 100 && !task.isCompleted()) {
+                                progress = 99;
+                            }
+                        } else {
+                            // No subtasks: reflect parent completion state
+                            progress = task.isCompleted() ? 100 : 0;
                         }
                         taskMap.put("progressBar", progress);
                         taskMap.put("subTasks", subTasks);

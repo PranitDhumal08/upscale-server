@@ -2,6 +2,7 @@ package com.upscale.upscale.controller.project;
 
 
 import com.upscale.upscale.dto.task.TaskData;
+import com.upscale.upscale.dto.task.UpdateTaskRequest;
 import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.project.SubTask;
 import com.upscale.upscale.repository.SubTaskRepo;
