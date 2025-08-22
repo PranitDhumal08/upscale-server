@@ -212,12 +212,17 @@ public class ProjectService {
             }
         }
         
-        newProject.setTeammates(teammatesMap);
 
 
+        if(teammatesMap.size() > 0){
+            newProject.setTeammates(teammatesMap);
+            save(newProject); // Save again with updated tasks and teammates
+            return userService.setProject(newProject, emailId);
+        }
 
-        save(newProject); // Save again with updated tasks and teammates
-        return userService.setProject(newProject, emailId);
+
+        return false;
+
     }
 
 
