@@ -310,7 +310,21 @@ public class ProjectController {
                                         stMap.put("group", st.getGroup());
                                         stMap.put("date", st.getDate());
                                         stMap.put("description", st.getDescription());
-                                        stMap.put("assignId", st.getAssignId());
+                                        // Map subtask assignee IDs to names (fallback to ID if name not available)
+                                        List<String> subAssigneeNames = new ArrayList<>();
+                                        if (st.getAssignId() != null) {
+                                            for (String subUserId : st.getAssignId()) {
+                                                String name = subUserId;
+                                                try {
+                                                    User su = userService.getUserById(subUserId);
+                                                    if (su != null && su.getFullName() != null && !su.getFullName().isEmpty()) {
+                                                        name = su.getFullName();
+                                                    }
+                                                } catch (Exception ignored) {}
+                                                subAssigneeNames.add(name);
+                                            }
+                                        }
+                                        stMap.put("assignId", subAssigneeNames);
                                         stMap.put("startDate", st.getStartDate());
                                         stMap.put("endDate", st.getEndDate());
                                         stMap.put("completed", st.isCompleted());
