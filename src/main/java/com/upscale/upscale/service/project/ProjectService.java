@@ -293,25 +293,51 @@ public class ProjectService {
     public HashMap<String, String> getProjectsAsTeammate(String emailId) {
         HashMap<String, String> teammateProjects = new HashMap<>();
         List<Project> allProjects = projectRepo.findAll();
-        
+
         User user = userService.getUser(emailId);
         if (user == null) {
             log.warn("User not found for email: {}", emailId);
             return teammateProjects;
         }
-        
-        for (Project project : allProjects) {
-            if (project.getTeammates() != null) {
-                // Check if user's email exists in any of the teammate entries
-                for (String[] teammateInfo : project.getTeammates().values()) {
-                    if (teammateInfo.length > 2 && teammateInfo[2].equals(emailId)) {
-                        teammateProjects.put(project.getId(), project.getProjectName());
-                        break; // Found user in this project, no need to check other teammates
-                    }
+
+        // 1) Include projects listed on the user's profile (populated during invite)
+        try {
+            List<String> userProjectIds = user.getProjects();
+            if (userProjectIds != null) {
+                for (String pid : userProjectIds) {
+                    Project p = getProject(pid);
+                    if (p != null) teammateProjects.put(p.getId(), p.getProjectName());
                 }
             }
+        } catch (Exception e) {
+            log.warn("Failed to include user.projects for {}: {}", emailId, e.getMessage());
         }
-        
+
+        // 2) Scan projects' teammates map to capture legacy formats
+        for (Project project : allProjects) {
+            HashMap<String, String[]> tm = project.getTeammates();
+            if (tm == null || tm.isEmpty()) continue;
+
+            // Match when user's ID is used as the key
+            if (tm.containsKey(user.getId())) {
+                teammateProjects.put(project.getId(), project.getProjectName());
+                continue;
+            }
+
+            // Match when teammate arrays store email at index 0 (new) or index 2 (old)
+            for (String[] info : tm.values()) {
+                try {
+                    boolean match =
+                        (info.length >= 1 && emailId.equalsIgnoreCase(info[0])) ||
+                        (info.length >= 3 && emailId.equalsIgnoreCase(info[2]));
+                    if (match) {
+                        teammateProjects.put(project.getId(), project.getProjectName());
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
         return teammateProjects;
     }
 
@@ -614,6 +640,7 @@ public class ProjectService {
                 ownerDetails.put("position", "owner");
                 ownerDetails.put("email", project.getUserEmailid());
                 ownerDetails.put("name", projectOwner.getFullName());
+                ownerDetails.put("isOwner", "true");
                 
                 projectRoles.put(projectOwner.getFullName(), ownerDetails);
             } else {
@@ -623,6 +650,7 @@ public class ProjectService {
                 ownerDetails.put("position", "owner");
                 ownerDetails.put("email", project.getUserEmailid() != null ? project.getUserEmailid() : "null");
                 ownerDetails.put("name", "null");
+                ownerDetails.put("isOwner", "true");
                 
                 projectRoles.put("null", ownerDetails);
                 log.warn("Project owner user not found for email: {}", project.getUserEmailid());

@@ -91,6 +91,115 @@ public class ProjectController {
         }
     }
 
+    @DeleteMapping("/overview/remove-member/{user-id}/project/{project-id}")
+    public ResponseEntity<?> removeMemberFromProject(
+            HttpServletRequest request,
+            @PathVariable("user-id") String userId,
+            @PathVariable("project-id") String projectId) {
+
+        try {
+            String requesterEmail = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            // Validate project
+            Project project = projectService.getProject(projectId);
+            if (project == null) {
+                response.put("status", "error");
+                response.put("message", "Project not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            HashMap<String, String[]> teammates = project.getTeammates();
+            if (teammates == null || teammates.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "No teammates found for this project");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            // Try to find target teammate entry by key (userId) first; if not found, fallback by email
+            String removalKey = userId;
+            String[] targetInfo = teammates.get(removalKey);
+            String targetEmail = null;
+            if (targetInfo == null || targetInfo.length < 3) {
+                // Fallback: resolve user by ID to get email, then find by email in teammates values
+                User targetUserResolved = null;
+                try { targetUserResolved = userService.getUserById(userId); } catch (Exception ignored) {}
+                if (targetUserResolved != null && targetUserResolved.getEmailId() != null) {
+                    String emailToFind = targetUserResolved.getEmailId();
+                    for (Map.Entry<String, String[]> entry : teammates.entrySet()) {
+                        String[] info = entry.getValue();
+                        if (info != null && info.length > 2 && emailToFind.equalsIgnoreCase(info[2])) {
+                            removalKey = entry.getKey();
+                            targetInfo = info;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (targetInfo == null || targetInfo.length < 3) {
+                response.put("status", "error");
+                response.put("message", "User not found in project teammates");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            targetEmail = targetInfo[2];
+
+            // Prevent removing project owner
+            if (project.getUserEmailid() != null && project.getUserEmailid().equalsIgnoreCase(targetEmail)) {
+                response.put("status", "error");
+                response.put("message", "Cannot remove project owner");
+                return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+            }
+
+            // Permission: requester must be owner or admin teammate
+            boolean isOwner = project.getUserEmailid() != null && project.getUserEmailid().equalsIgnoreCase(requesterEmail);
+            boolean isAdmin = false;
+            if (!isOwner) {
+                for (Map.Entry<String, String[]> entry : teammates.entrySet()) {
+                    String[] info = entry.getValue();
+                    if (info != null && info.length > 2 && requesterEmail.equalsIgnoreCase(info[2])) {
+                        if (info[1] != null && info[1].equalsIgnoreCase("admin")) {
+                            isAdmin = true;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (!(isOwner || isAdmin)) {
+                response.put("status", "error");
+                response.put("message", "You don't have permission to remove this member");
+                return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+            }
+
+            // Remove member from project teammates
+            teammates.remove(removalKey);
+            project.setTeammates(teammates);
+            projectService.save(project);
+
+            // Also remove project from user's project list if user exists
+            try {
+                User targetUser = userService.getUserById(userId);
+                if (targetUser != null && targetUser.getProjects() != null) {
+                    List<String> projList = targetUser.getProjects();
+                    projList.removeIf(id -> id.equals(projectId));
+                    targetUser.setProjects(projList);
+                    userService.save(targetUser);
+                }
+            } catch (Exception ignored) {}
+
+            response.put("status", "success");
+            response.put("message", "Member removed from project successfully");
+            response.put("projectId", projectId);
+            response.put("removedUserId", userId);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/dashboard/{project-id}")
     public ResponseEntity<?> getDashboard(HttpServletRequest request, @PathVariable("project-id") String projectId) {
         try{
@@ -541,6 +650,17 @@ public class ProjectController {
             HashMap<String, Object> data = projectService.getProjectOverview(projectId);
 
             if(data != null){
+                // Compute permissions for frontend UI behavior
+                try {
+                    String requesterEmail = tokenService.getEmailFromToken(request);
+                    Project project = projectService.getProject(projectId);
+                    boolean isOwner = project != null && project.getUserEmailid() != null && project.getUserEmailid().equalsIgnoreCase(requesterEmail);
+                    HashMap<String, Object> perms = new HashMap<>();
+                    perms.put("currentUserIsOwner", isOwner);
+                    // Enforce UI to hide member actions (no add role, no 3-dots) for all members by default
+                    perms.put("showMemberActions", false);
+                    data.put("Permissions", perms);
+                } catch (Exception ignored) {}
                 response.put("status", "success");
                 response.put("message", "Project overview successfully");
                 response.put("data", data);
@@ -639,32 +759,60 @@ public class ProjectController {
             String email = tokenService.getEmailFromToken(request);
             HashMap<String,Object> response = new HashMap<>();
 
+            // Fetch project and validate
             Project originalProject = projectService.getProject(projectId);
+            if (originalProject == null) {
+                response.put("status", "error");
+                response.put("message", "Project not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
             HashMap<String,String[]> teammates = originalProject.getTeammates();
-            if(!teammates.isEmpty()){
-                String[] teammateInfo = teammates.get(userId);
+            if (teammates == null || teammates.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "No teammates found for this project");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
 
-                if(teammateInfo.length > 2 && teammateInfo[2].equals(email)){
-                    teammateInfo[1] = roleName;
+            String[] teammateInfo = teammates.get(userId);
+            if (teammateInfo == null || teammateInfo.length < 3) {
+                response.put("status", "error");
+                response.put("message", "User not found in project teammates");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
 
-                    teammates.put(userId, teammateInfo);
-                    originalProject.setTeammates(teammates);
-                    projectService.save(originalProject);
-                    response.put("status", "success");
-                    response.put("message", "Project updated successfully");
-                    response.put("originalProjectId", projectId);
-                    return new ResponseEntity<>(response, HttpStatus.OK);
+            // Permission: project owner OR an admin teammate can change roles
+            boolean isOwner = originalProject.getUserEmailid() != null && originalProject.getUserEmailid().equalsIgnoreCase(email);
+            boolean isAdmin = false;
 
-                }else{
-                    response.put("status", "error");
-                    response.put("message", "You don't have permission to change this project");
-                    return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+            if (!isOwner) {
+                // Find requester in teammates by matching email at index [2]
+                for (Map.Entry<String, String[]> entry : teammates.entrySet()) {
+                    String[] info = entry.getValue();
+                    if (info != null && info.length > 2 && email.equalsIgnoreCase(info[2])) {
+                        // role is at index [1]
+                        if (info[1] != null && info[1].equalsIgnoreCase("admin")) {
+                            isAdmin = true;
+                        }
+                        break;
+                    }
                 }
             }
-            else{
+
+            if (isOwner || isAdmin) {
+                // Update role for the target teammate
+                teammateInfo[1] = roleName;
+                teammates.put(userId, teammateInfo);
+                originalProject.setTeammates(teammates);
+                projectService.save(originalProject);
+                response.put("status", "success");
+                response.put("message", "Project updated successfully");
+                response.put("originalProjectId", projectId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
                 response.put("status", "error");
-                response.put("message", "User not found");
-                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+                response.put("message", "You don't have permission to change this project");
+                return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
             }
 
 

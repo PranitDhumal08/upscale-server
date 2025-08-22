@@ -109,6 +109,22 @@ public class PeopleService {
                         log.info("Teammate {} ({}) added to project {} with role: {}", 
                                 user.getFullName(), user.getId(), project.getProjectName(), assignedRole);
 
+                        // Also reflect membership in the user's projects list for visibility
+                        try {
+                            if (user.getProjects() == null) {
+                                user.setProjects(new java.util.ArrayList<>());
+                            }
+                            java.util.List<String> projList = user.getProjects();
+                            if (!projList.contains(project.getId())) {
+                                projList.add(project.getId());
+                                user.setProjects(projList);
+                                userService.save(user);
+                                log.info("Added project {} to user {} projects list during invite", project.getId(), user.getId());
+                            }
+                        } catch (Exception ex) {
+                            log.warn("Could not add project {} to user {} during invite: {}", project.getId(), user.getId(), ex.getMessage());
+                        }
+
                     } else if (portfolio.isPresent()) {
                         portfolio.get().getTeammates().add(user.getId());
                         log.info("Teammate " + user.getId() + " has been saved to portfolio");
