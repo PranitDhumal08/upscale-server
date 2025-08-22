@@ -2,6 +2,7 @@ package com.upscale.upscale.controller.project;
 
 
 import com.upscale.upscale.dto.task.TaskData;
+import com.upscale.upscale.dto.task.UpdateScheduleRequest;
 import com.upscale.upscale.dto.task.UpdateTaskRequest;
 import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.project.SubTask;
@@ -85,6 +86,73 @@ public class TaskController {
 
         }catch (Exception e) {
             log.error("Exception in setTask: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/update/{task-id}")
+    public ResponseEntity<?> updateTaskFields(
+            HttpServletRequest request,
+            @PathVariable("task-id") String taskId,
+            @RequestBody UpdateTaskRequest body
+    ) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (body == null) {
+                response.put("message", "Request body is required");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            Task task = taskService.getTask(taskId);
+            if (task == null) {
+                response.put("message", "Task not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            boolean ok = taskService.updateTaskFields(taskId, body, email);
+            if (ok) {
+                response.put("message", ">>> Task updated successfully <<<");
+                response.put("taskId", taskId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            response.put("message", "Failed to update task");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/schedule/{task-id}")
+    public ResponseEntity<?> updateTaskSchedule(
+            HttpServletRequest request,
+            @PathVariable("task-id") String taskId,
+            @RequestBody UpdateScheduleRequest body
+    ) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            // Basic validation
+            if (body.getStartDate() == null || body.getEndDate() == null) {
+                response.put("message", "startDate and endDate are required");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+            if (body.getEndDate().before(body.getStartDate())) {
+                response.put("message", "endDate must be after startDate");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            boolean ok = taskService.updateSchedule(taskId, body, email);
+            if (ok) {
+                response.put("message", ">>> Task schedule updated (recurrence applied) <<<");
+                response.put("taskId", taskId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            response.put("message", "Task not found or failed to update");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -349,12 +417,11 @@ public class TaskController {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
 
-            if(taskService.updateTaskToProject(taskId,taskData)){
+            if (taskService.updateTaskToProject(taskId, taskData)) {
                 response.put("message", "Task updated and moved to section successfully");
                 response.put("taskId", task.getId());
                 return new ResponseEntity<>(response, HttpStatus.OK);
-            }
-            else{
+            } else {
                 response.put("message", "Failed to update task");
                 return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
             }

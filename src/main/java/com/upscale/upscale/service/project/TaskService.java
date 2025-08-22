@@ -1,11 +1,15 @@
 package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.task.TaskData;
+import com.upscale.upscale.dto.task.UpdateScheduleRequest;
+import com.upscale.upscale.dto.task.UpdateTaskRequest;
 import com.upscale.upscale.entity.project.Project;
 import com.upscale.upscale.entity.project.Section;
 import com.upscale.upscale.entity.project.Task;
+import com.upscale.upscale.entity.project.SubTask;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.repository.TaskRepo;
+import com.upscale.upscale.repository.SubTaskRepo;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserLookupService;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Calendar;
+import java.util.Date;
 
 @Service
 @Slf4j
@@ -39,12 +45,14 @@ public class TaskService {
     @Lazy
     private ProjectService projectService;
 
+    @Autowired
+    private SubTaskRepo subTaskRepo;
+
     public Task save(Task task) {
         // Ensure ID is generated if null (backup solution)
         if (task.getId() == null) {
             log.info("Task ID is null before saving, MongoDB will auto-generate it");
         }
-        
         Task savedTask = taskRepo.save(task);
         
         // Verify ID was generated
@@ -366,6 +374,28 @@ public class TaskService {
         if(task != null) {
             task.setCompleted(true);
             save(task);
+
+            // If task is set to repeat periodically, create the next instance N days after completion
+            try {
+                if ("PERIODICALLY".equalsIgnoreCase(task.getRepeatFrequency()) && task.getPeriodicDaysAfterCompletion() != null) {
+                    int n = Math.max(0, task.getPeriodicDaysAfterCompletion());
+                    Date completion = new Date();
+                    long duration = 0L;
+                    if (task.getStartDate() != null && task.getEndDate() != null) {
+                        duration = Math.max(0L, task.getEndDate().getTime() - task.getStartDate().getTime());
+                    }
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(completion);
+                    cal.add(Calendar.DATE, n);
+                    Date nextStart = cal.getTime();
+
+                    Task instance = cloneAsInstance(task, nextStart, duration);
+                    Task saved = save(instance);
+                    addTaskInstanceToSameSections(task.getId(), saved.getId());
+                    // Default: clone subtasks as part of the next instance
+                    cloneSubTasksForInstance(task, saved, nextStart, new Date(nextStart.getTime() + duration));
+                }
+            } catch (Exception ignored) {}
             log.info("Updated Task: {}", task);
         } else {
             log.warn("Task with ID {} not found.", taskId);
@@ -409,5 +439,249 @@ public class TaskService {
         }
         
         return false;
+    }
+
+    /**
+     * Update task fields via UpdateTaskRequest alias used by PUT /api/task/update/{task-id}
+     * - assign: list of assignee email IDs -> resolved to user IDs
+     * - dueDate -> maps to Task.endDate
+     * - priority, status
+     */
+    public boolean updateTaskFields(String taskId, UpdateTaskRequest req, String requesterEmail) {
+        if (taskId == null || req == null) return false;
+
+        Task task = getTask(taskId);
+        if (task == null) return false;
+
+        // Resolve assignee emails to user IDs (if provided)
+        if (req.getAssign() != null) {
+            List<String> resolvedIds = new ArrayList<>();
+            for (String email : req.getAssign()) {
+                try {
+                    User u = userLookupService.getUserByEmail(email);
+                    if (u != null) resolvedIds.add(u.getId());
+                } catch (Exception ignored) {}
+            }
+            task.setAssignId(resolvedIds);
+        }
+
+        if (req.getDueDate() != null) task.setEndDate(req.getDueDate());
+        if (req.getPriority() != null) task.setPriority(req.getPriority());
+        if (req.getStatus() != null) task.setStatus(req.getStatus());
+
+        taskRepo.save(task);
+        return true;
+    }
+
+    public boolean updateSchedule(String taskId, UpdateScheduleRequest req, String email) {
+        Task template = getTask(taskId);
+        if (template == null) return false;
+
+        // Update base dates
+        if (req.getStartDate() != null) template.setStartDate(req.getStartDate());
+        if (req.getEndDate() != null) template.setEndDate(req.getEndDate());
+
+        // Recurrence settings on template
+        String freq = req.getRepeatFrequency() == null ? "NONE" : req.getRepeatFrequency();
+        template.setRepeatFrequency(freq);
+        template.setRepeatDaysOfWeek(req.getDaysOfWeek() != null ? req.getDaysOfWeek() : new ArrayList<>());
+        template.setMonthlyMode(req.getMonthlyMode());
+        template.setMonthlyNth(req.getMonthlyNth());
+        template.setMonthlyWeekday(req.getMonthlyWeekday());
+        template.setMonthlyDayOfMonth(req.getMonthlyDayOfMonth());
+        // periodic setting (only used when freq == PERIODICALLY)
+        template.setPeriodicDaysAfterCompletion(null);
+        template.setRecurrenceInstance(false);
+        template.setRecurrenceParentId(null);
+
+        save(template);
+
+        if ("NONE".equalsIgnoreCase(freq)) return true;
+        if ("PERIODICALLY".equalsIgnoreCase(freq)) {
+            // Store periodic config and return. No pre-generation here.
+            template.setMonthlyMode(null);
+            template.setMonthlyNth(null);
+            template.setMonthlyWeekday(null);
+            template.setMonthlyDayOfMonth(null);
+            template.setRepeatDaysOfWeek(new ArrayList<>());
+            template.setPeriodicDaysAfterCompletion(req.getPeriodicDaysAfterCompletion());
+            save(template);
+            return true;
+        }
+
+        Date start = template.getStartDate();
+        Date endBoundary = template.getEndDate();
+        if (start == null || endBoundary == null) return true; // no occurrences without bounds
+
+        long duration = 0L;
+        if (template.getEndDate() != null && template.getStartDate() != null) {
+            duration = template.getEndDate().getTime() - template.getStartDate().getTime();
+        }
+
+        List<Date> occurrences = new ArrayList<>();
+        if ("WEEKLY".equalsIgnoreCase(freq)) {
+            occurrences.addAll(generateWeeklyOccurrences(start, endBoundary, template.getRepeatDaysOfWeek()));
+        } else if ("MONTHLY".equalsIgnoreCase(freq)) {
+            if ("ON_NTH_WEEKDAY".equalsIgnoreCase(template.getMonthlyMode())) {
+                occurrences.addAll(generateMonthlyNthWeekdayOccurrences(start, endBoundary, template.getMonthlyNth(), template.getMonthlyWeekday()));
+            } else if ("ON_DAY_OF_MONTH".equalsIgnoreCase(template.getMonthlyMode())) {
+                occurrences.addAll(generateMonthlyDayOccurrences(start, endBoundary, template.getMonthlyDayOfMonth()));
+            }
+        }
+
+        // Avoid duplicating the template's own start date
+        for (Date occStart : occurrences) {
+            if (sameDay(occStart, start)) continue; // template represents the first
+            Task instance = cloneAsInstance(template, occStart, duration);
+            Task saved = save(instance);
+            // place in same sections as template
+            addTaskInstanceToSameSections(template.getId(), saved.getId());
+            // clone subtasks if requested (default true)
+            boolean cloneSubs = req.getCloneSubTasks() == null || req.getCloneSubTasks();
+            if (cloneSubs) {
+                cloneSubTasksForInstance(template, saved, occStart, new Date(occStart.getTime() + duration));
+            }
+        }
+
+        return true;
+    }
+
+    private Task cloneAsInstance(Task template, Date occStart, long duration) {
+        Task t = new Task();
+        t.setTaskName(template.getTaskName());
+        t.setCreatedId(template.getCreatedId());
+        t.setProjectIds(new ArrayList<>(template.getProjectIds()));
+        t.setCompleted(false);
+        t.setPriority(template.getPriority());
+        t.setStatus(template.getStatus());
+        t.setGroup(template.getGroup());
+        t.setDate(occStart);
+        t.setDescription(template.getDescription());
+        t.setAssignId(new ArrayList<>(template.getAssignId()));
+        t.setStartDate(occStart);
+        t.setEndDate(new Date(occStart.getTime() + Math.max(0, duration)));
+        t.setSubTaskIds(new ArrayList<>());
+        t.setRepeatFrequency(null); // instances are not generators
+        t.setRepeatDaysOfWeek(new ArrayList<>());
+        t.setMonthlyMode(null);
+        t.setMonthlyNth(null);
+        t.setMonthlyWeekday(null);
+        t.setMonthlyDayOfMonth(null);
+        t.setRecurrenceParentId(template.getId());
+        t.setRecurrenceInstance(true);
+        return t;
+    }
+
+    private void addTaskInstanceToSameSections(String templateTaskId, String instanceTaskId) {
+        List<Project> projects = projectService.getProjects();
+        for (Project p : projects) {
+            if (p.getSection() == null) continue;
+            boolean changed = false;
+            for (Section s : p.getSection()) {
+                if (s.getTaskIds() != null && s.getTaskIds().contains(templateTaskId)) {
+                    s.getTaskIds().add(instanceTaskId);
+                    changed = true;
+                }
+            }
+            if (changed) projectService.save(p);
+        }
+    }
+
+    private void cloneSubTasksForInstance(Task template, Task instance, Date occStart, Date occEnd) {
+        if (template.getSubTaskIds() == null) return;
+        List<String> newIds = new ArrayList<>();
+        for (String stId : template.getSubTaskIds()) {
+            SubTask orig = null;
+            try { orig = subTaskRepo.findById(stId).orElse(null); } catch (Exception ignored) {}
+            if (orig == null) continue;
+            SubTask clone = new SubTask();
+            clone.setCreatedId(orig.getCreatedId());
+            clone.setProjectIds(orig.getProjectIds());
+            clone.setTaskName(orig.getTaskName());
+            clone.setCompleted(false);
+            clone.setPriority(orig.getPriority());
+            clone.setStatus(orig.getStatus());
+            clone.setGroup(orig.getGroup());
+            clone.setDate(occStart);
+            clone.setDescription(orig.getDescription());
+            clone.setAssignId(new ArrayList<>(orig.getAssignId()));
+            clone.setStartDate(occStart);
+            clone.setEndDate(occEnd);
+            SubTask saved = subTaskRepo.save(clone);
+            newIds.add(saved.getId());
+        }
+        instance.getSubTaskIds().addAll(newIds);
+        save(instance);
+    }
+
+    private boolean sameDay(Date a, Date b) {
+        Calendar ca = Calendar.getInstance(); ca.setTime(a);
+        Calendar cb = Calendar.getInstance(); cb.setTime(b);
+        return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR)
+                && ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR);
+    }
+
+    private List<Date> generateWeeklyOccurrences(Date start, Date end, List<Integer> daysOfWeek) {
+        List<Date> result = new ArrayList<>();
+        if (daysOfWeek == null || daysOfWeek.isEmpty()) return result;
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(start);
+        // Normalize to start date at 00:00 of that day
+        while (!cal.getTime().after(end)) {
+            int dow = cal.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY; // 0..6
+            if (daysOfWeek.contains(dow)) {
+                result.add(cal.getTime());
+            }
+            cal.add(Calendar.DATE, 1);
+        }
+        return result;
+    }
+
+    private List<Date> generateMonthlyNthWeekdayOccurrences(Date start, Date end, Integer nth, Integer weekday) {
+        List<Date> result = new ArrayList<>();
+        if (nth == null || weekday == null) return result;
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(start);
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        while (!cal.getTime().after(end)) {
+            Date d = nthWeekdayOfMonth(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), nth, weekday);
+            if (d != null && !d.before(start) && !d.after(end)) result.add(d);
+            cal.add(Calendar.MONTH, 1);
+        }
+        return result;
+    }
+
+    private Date nthWeekdayOfMonth(int year, int monthZeroBased, int nth, int weekdayZeroSun) {
+        Calendar c = Calendar.getInstance();
+        c.clear();
+        c.set(Calendar.YEAR, year);
+        c.set(Calendar.MONTH, monthZeroBased);
+        c.set(Calendar.DAY_OF_MONTH, 1);
+        int count = 0;
+        while (c.get(Calendar.MONTH) == monthZeroBased) {
+            int dow = c.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY; // 0..6
+            if (dow == weekdayZeroSun) {
+                count++;
+                if (count == nth) return c.getTime();
+            }
+            c.add(Calendar.DATE, 1);
+        }
+        return null;
+    }
+
+    private List<Date> generateMonthlyDayOccurrences(Date start, Date end, Integer dayOfMonth) {
+        List<Date> result = new ArrayList<>();
+        if (dayOfMonth == null) return result;
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(start);
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        while (!cal.getTime().after(end)) {
+            Calendar c = (Calendar) cal.clone();
+            c.set(Calendar.DAY_OF_MONTH, Math.min(dayOfMonth, c.getActualMaximum(Calendar.DAY_OF_MONTH)));
+            Date d = c.getTime();
+            if (!d.before(start) && !d.after(end)) result.add(d);
+            cal.add(Calendar.MONTH, 1);
+        }
+        return result;
     }
 }

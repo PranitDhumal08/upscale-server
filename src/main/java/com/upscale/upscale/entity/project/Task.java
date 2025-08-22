@@ -28,4 +28,24 @@ public class Task {
     private Date endDate;
 
     private List<String> subTaskIds = new ArrayList<>();
+
+    // Recurrence configuration
+    // NONE, WEEKLY, MONTHLY
+    private String repeatFrequency;
+    // For WEEKLY: 0=Sun..6=Sat
+    private List<Integer> repeatDaysOfWeek = new ArrayList<>();
+    // For MONTHLY: ON_NTH_WEEKDAY or ON_DAY_OF_MONTH
+    private String monthlyMode;
+    // For MONTHLY ON_NTH_WEEKDAY: 1..5 (1st, 2nd ... 5th) and weekday 0..6
+    private Integer monthlyNth;
+    private Integer monthlyWeekday;
+    // For MONTHLY ON_DAY_OF_MONTH: 1..31
+    private Integer monthlyDayOfMonth;
+
+    // Periodic scheduling: create next task N days after completion
+    private Integer periodicDaysAfterCompletion;
+
+    // Recurrence linkage
+    private String recurrenceParentId; // if this is an instance, points to parent template task
+    private boolean recurrenceInstance; // true if generated instance
 }

@@ -34,6 +34,8 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/SectionData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/SubTaskData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/TaskData.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/UpdateScheduleRequest.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/UpdateTaskRequest.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/user/LoginUser.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/user/UserCreate.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/user/UserLogin.java

@@ -28,12 +28,15 @@ public class InboxController {
     private TokenService tokenService;
 
     @GetMapping("/get-inbox" )
-    public ResponseEntity<?> getAllInbox(HttpServletRequest request) {
+    public ResponseEntity<?> getAllInbox(HttpServletRequest request,
+                                         @RequestParam(value = "type", required = false) String type) {
         try{
 
             String emailId = tokenService.getEmailFromToken(request);
 
-            List<InboxData> inboxDataList = inboxService.getInbox(emailId);
+            List<InboxData> inboxDataList = (type == null || type.isBlank())
+                    ? inboxService.getInbox(emailId)
+                    : inboxService.getInbox(emailId, type);
 
             HashMap<String,Object> response = new HashMap<>();
             if(!inboxDataList.isEmpty()){
@@ -51,6 +54,23 @@ public class InboxController {
 
         }catch (Exception e) {
             return new ResponseEntity<>(">>> Failed to get inbox <<<", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PatchMapping("/{id}/read")
+    public ResponseEntity<?> markInboxAsRead(@PathVariable("id") String id, HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            boolean ok = inboxService.markRead(id, emailId);
+            if (ok) {
+                HashMap<String, Object> response = new HashMap<>();
+                response.put("message", ">>> Inbox marked as read <<<");
+                response.put("id", id);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            return new ResponseEntity<>(">>> Unable to mark inbox as read <<<", HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(">>> Failed to mark inbox as read <<<", HttpStatus.BAD_REQUEST);
         }
     }
 
