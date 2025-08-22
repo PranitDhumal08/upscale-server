@@ -52,6 +52,24 @@ public class ProjectController {
 
             if(projectCreate != null){
 
+                // Validate teammate emails before creating/updating project
+                if (projectCreate.getTeammates() != null && !projectCreate.getTeammates().isEmpty()) {
+                    for (String teammateEmail : projectCreate.getTeammates()) {
+                        try {
+                            User teammate = userService.getUser(teammateEmail);
+                            if (teammate == null) {
+                                response.put("message", "teammate user not valid");
+                                response.put("invalidEmail", teammateEmail);
+                                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+                            }
+                        } catch (Exception ex) {
+                            response.put("message", "teammate user not valid");
+                            response.put("invalidEmail", teammateEmail);
+                            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+                        }
+                    }
+                }
+
                 if(projectService.getProject(email) != null){
                     if(projectService.updateProject(email,projectCreate)){
                         response.put("message",">>> Project updated successfully <<<");
@@ -650,17 +668,6 @@ public class ProjectController {
             HashMap<String, Object> data = projectService.getProjectOverview(projectId);
 
             if(data != null){
-                // Compute permissions for frontend UI behavior
-                try {
-                    String requesterEmail = tokenService.getEmailFromToken(request);
-                    Project project = projectService.getProject(projectId);
-                    boolean isOwner = project != null && project.getUserEmailid() != null && project.getUserEmailid().equalsIgnoreCase(requesterEmail);
-                    HashMap<String, Object> perms = new HashMap<>();
-                    perms.put("currentUserIsOwner", isOwner);
-                    // Enforce UI to hide member actions (no add role, no 3-dots) for all members by default
-                    perms.put("showMemberActions", false);
-                    data.put("Permissions", perms);
-                } catch (Exception ignored) {}
                 response.put("status", "success");
                 response.put("message", "Project overview successfully");
                 response.put("data", data);
