@@ -106,6 +106,7 @@ public class TaskController {
 
             // Build new Task from body
             Task clone = new Task();
+
             clone.setTaskName(body.getTaskName());
             clone.setCreatedId(body.getCreatedId());
             clone.setProjectIds(body.getProjectIds());
@@ -135,33 +136,9 @@ public class TaskController {
             // Save base task first to get ID
             Task saved = taskService.save(clone);
 
-            // Clone provided subtasks into new task
-            List<String> newSubTaskIds = new ArrayList<>();
-            if (body.getSubTasks() != null) {
-                for (String stId : body.getSubTasks()) {
-                    try {
-                        SubTask orig = subTaskRepo.findById(stId).orElse(null);
-                        if (orig == null) continue;
-                        SubTask st = new SubTask();
-                        st.setCreatedId(orig.getCreatedId());
-                        st.setProjectIds(orig.getProjectIds());
-                        st.setTaskName(orig.getTaskName());
-                        st.setCompleted(false);
-                        st.setPriority(orig.getPriority());
-                        st.setStatus(orig.getStatus());
-                        st.setGroup(orig.getGroup());
-                        st.setDate(body.getStartDate() != null ? body.getStartDate() : orig.getDate());
-                        st.setDescription(orig.getDescription());
-                        st.setAssignId(new ArrayList<>(orig.getAssignId()));
-                        st.setStartDate(body.getStartDate() != null ? body.getStartDate() : orig.getStartDate());
-                        st.setEndDate(body.getEndDate() != null ? body.getEndDate() : orig.getEndDate());
-                        SubTask savedSt = subTaskRepo.save(st);
-                        newSubTaskIds.add(savedSt.getId());
-                    } catch (Exception ignored) {}
-                }
-            }
-            if (!newSubTaskIds.isEmpty()) {
-                saved.setSubTaskIds(newSubTaskIds);
+            // Attach provided subtask IDs as-is to the cloned task (no cloning of subtasks)
+            if (body.getSubTasks() != null && !body.getSubTasks().isEmpty()) {
+                saved.setSubTaskIds(new ArrayList<>(body.getSubTasks()));
                 taskService.save(saved);
             }
 
