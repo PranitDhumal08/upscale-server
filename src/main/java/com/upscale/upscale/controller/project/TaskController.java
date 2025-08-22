@@ -2,6 +2,7 @@ package com.upscale.upscale.controller.project;
 
 
 import com.upscale.upscale.dto.task.TaskData;
+import com.upscale.upscale.dto.task.CloneTaskRequest;
 import com.upscale.upscale.dto.task.UpdateScheduleRequest;
 import com.upscale.upscale.dto.task.UpdateTaskRequest;
 import com.upscale.upscale.entity.project.Task;
@@ -86,6 +87,112 @@ public class TaskController {
 
         }catch (Exception e) {
             log.error("Exception in setTask: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/clone/{section-id}")
+    public ResponseEntity<?> cloneTaskToSection(
+            HttpServletRequest request,
+            @PathVariable("section-id") String sectionId,
+            @RequestBody CloneTaskRequest body
+    ) {
+        try {
+            HashMap<String, Object> response = new HashMap<>();
+            if (body == null) {
+                response.put("message", "Request body is required");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            // Build new Task from body
+            Task clone = new Task();
+            clone.setTaskName(body.getTaskName());
+            clone.setCreatedId(body.getCreatedId());
+            clone.setProjectIds(body.getProjectIds());
+            clone.setCompleted(body.getCompleted() != null ? body.getCompleted() : false);
+            clone.setPriority(body.getPriority());
+            clone.setStatus(body.getStatus());
+            clone.setGroup(body.getGroup());
+            clone.setDate(body.getDate());
+            clone.setDescription(body.getDescription());
+            clone.setStartDate(body.getStartDate() != null ? body.getStartDate() : body.getDate());
+            clone.setEndDate(body.getEndDate());
+
+            // Resolve assign emails -> user IDs
+            List<String> assigneeIds = new ArrayList<>();
+            if (body.getAssignId() != null) {
+                for (String emailOrId : body.getAssignId()) {
+                    String uid = null;
+                    try {
+                        User u = userService.getUser(emailOrId);
+                        if (u != null) uid = u.getId();
+                    } catch (Exception ignored) {}
+                    assigneeIds.add(uid != null ? uid : emailOrId);
+                }
+            }
+            clone.setAssignId(assigneeIds);
+
+            // Save base task first to get ID
+            Task saved = taskService.save(clone);
+
+            // Clone provided subtasks into new task
+            List<String> newSubTaskIds = new ArrayList<>();
+            if (body.getSubTasks() != null) {
+                for (String stId : body.getSubTasks()) {
+                    try {
+                        SubTask orig = subTaskRepo.findById(stId).orElse(null);
+                        if (orig == null) continue;
+                        SubTask st = new SubTask();
+                        st.setCreatedId(orig.getCreatedId());
+                        st.setProjectIds(orig.getProjectIds());
+                        st.setTaskName(orig.getTaskName());
+                        st.setCompleted(false);
+                        st.setPriority(orig.getPriority());
+                        st.setStatus(orig.getStatus());
+                        st.setGroup(orig.getGroup());
+                        st.setDate(body.getStartDate() != null ? body.getStartDate() : orig.getDate());
+                        st.setDescription(orig.getDescription());
+                        st.setAssignId(new ArrayList<>(orig.getAssignId()));
+                        st.setStartDate(body.getStartDate() != null ? body.getStartDate() : orig.getStartDate());
+                        st.setEndDate(body.getEndDate() != null ? body.getEndDate() : orig.getEndDate());
+                        SubTask savedSt = subTaskRepo.save(st);
+                        newSubTaskIds.add(savedSt.getId());
+                    } catch (Exception ignored) {}
+                }
+            }
+            if (!newSubTaskIds.isEmpty()) {
+                saved.setSubTaskIds(newSubTaskIds);
+                taskService.save(saved);
+            }
+
+            // Attach cloned task to the provided sectionId
+            boolean sectionFound = false;
+            List<com.upscale.upscale.entity.project.Project> projects = projectService.getProjects();
+            for (com.upscale.upscale.entity.project.Project p : projects) {
+                if (p.getSection() == null) continue;
+                boolean changed = false;
+                for (com.upscale.upscale.entity.project.Section s : p.getSection()) {
+                    if (sectionId.equals(s.getId())) {
+                        s.getTaskIds().add(saved.getId());
+                        changed = true;
+                        sectionFound = true;
+                        break;
+                    }
+                }
+                if (changed) projectService.save(p);
+                if (sectionFound) break;
+            }
+
+            if (!sectionFound) {
+                response.put("message", "Section not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            response.put("message", ">>> Task cloned successfully <<<");
+            response.put("taskId", saved.getId());
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (Exception e) {
+            log.error("Error cloning task into section {}", sectionId, e);
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
