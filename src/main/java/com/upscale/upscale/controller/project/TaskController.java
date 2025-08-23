@@ -10,6 +10,7 @@ import com.upscale.upscale.entity.project.SubTask;
 import com.upscale.upscale.repository.SubTaskRepo;
 import com.upscale.upscale.entity.user.User;
 import com.upscale.upscale.service.project.ProjectService;
+import com.upscale.upscale.service.project.SubTaskService;
 import com.upscale.upscale.service.project.TaskService;
 import com.upscale.upscale.service.TokenService;
 import com.upscale.upscale.service.UserService;
@@ -20,10 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/task")
@@ -174,6 +172,9 @@ public class TaskController {
         }
     }
 
+    @Autowired
+    private SubTaskService subTaskService;
+
     @PutMapping("/update/{task-id}")
     public ResponseEntity<?> updateTaskFields(
             HttpServletRequest request,
@@ -190,13 +191,20 @@ public class TaskController {
             }
 
             Task task = taskService.getTask(taskId);
+            Optional<SubTask> subTask = subTaskRepo.findById(taskId);
             if (task == null) {
                 response.put("message", "Task not found");
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
 
+            if(!subTask.isPresent()){
+                response.put("message", "Task not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
             boolean ok = taskService.updateTaskFields(taskId, body, email);
-            if (ok) {
+            boolean subTaskFound = subTaskService.updateTaskFields(taskId,body,email);
+            if (ok || subTaskFound) {
                 response.put("message", ">>> Task updated successfully <<<");
                 response.put("taskId", taskId);
                 return new ResponseEntity<>(response, HttpStatus.OK);

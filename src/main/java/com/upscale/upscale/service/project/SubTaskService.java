@@ -1,6 +1,7 @@
 package com.upscale.upscale.service.project;
 
 import com.upscale.upscale.dto.task.SubTaskData;
+import com.upscale.upscale.dto.task.UpdateTaskRequest;
 import com.upscale.upscale.entity.project.SubTask;
 import com.upscale.upscale.entity.project.Task;
 import com.upscale.upscale.entity.user.User;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -99,5 +101,37 @@ public class SubTaskService {
             log.info("Updated SubTask {} completed={} ", subTaskId, completed);
             return saved;
         }).orElse(null);
+    }
+
+    public boolean updateTaskFields(String taskId, UpdateTaskRequest req, String requesterEmail) {
+
+        if (taskId == null || req == null) return false;
+
+        Optional<SubTask> subTask = subTaskRepo.findById(taskId);
+        if (!subTask.isPresent()) return false;
+
+        SubTask task = subTask.get();
+
+        // Resolve assignee emails to user IDs (if provided)
+        if (req.getAssign() != null) {
+            List<String> resolvedIds = new ArrayList<>();
+            for (String email : req.getAssign()) {
+                try {
+                    User u = userLookupService.getUserByEmail(email);
+                    if (u != null) resolvedIds.add(u.getId());
+                } catch (Exception ignored) {}
+            }
+            task.setAssignId(resolvedIds);
+        }
+
+        // Update scheduling fields if provided
+        if (req.getStartDate() != null) task.setStartDate(req.getStartDate());
+        if (req.getEndDate() != null) task.setEndDate(req.getEndDate());
+        if (req.getPriority() != null) task.setPriority(req.getPriority());
+        if (req.getStatus() != null) task.setStatus(req.getStatus());
+
+        subTaskRepo.save(task);
+        return true;
+
     }
 }
