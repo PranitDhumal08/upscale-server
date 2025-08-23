@@ -190,27 +190,37 @@ public class TaskController {
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
+            // Try updating Task first
             Task task = taskService.getTask(taskId);
+            if (task != null) {
+                boolean ok = taskService.updateTaskFields(taskId, body, email);
+                if (ok) {
+                    response.put("message", ">>> Task updated successfully <<<");
+                    response.put("type", "task");
+                    response.put("taskId", taskId);
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                response.put("message", "Failed to update task");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            // If not a Task, fallback to SubTask
             Optional<SubTask> subTask = subTaskRepo.findById(taskId);
-            if (task == null) {
-                response.put("message", "Task not found");
-                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            if (subTask.isPresent()) {
+                boolean ok = subTaskService.updateTaskFields(taskId, body, email);
+                if (ok) {
+                    response.put("message", ">>> Subtask updated successfully <<<");
+                    response.put("type", "subtask");
+                    response.put("taskId", taskId);
+                    return new ResponseEntity<>(response, HttpStatus.OK);
+                }
+                response.put("message", "Failed to update subtask");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
-            if(!subTask.isPresent()){
-                response.put("message", "Task not found");
-                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-            }
-
-            boolean ok = taskService.updateTaskFields(taskId, body, email);
-            boolean subTaskFound = subTaskService.updateTaskFields(taskId,body,email);
-            if (ok || subTaskFound) {
-                response.put("message", ">>> Task updated successfully <<<");
-                response.put("taskId", taskId);
-                return new ResponseEntity<>(response, HttpStatus.OK);
-            }
-            response.put("message", "Failed to update task");
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            // Neither Task nor SubTask found
+            response.put("message", "Task not found");
+            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
         } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
