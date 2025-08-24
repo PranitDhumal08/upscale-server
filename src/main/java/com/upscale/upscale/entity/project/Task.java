@@ -45,6 +45,9 @@ public class Task {
     // Periodic scheduling: create next task N days after completion
     private Integer periodicDaysAfterCompletion;
 
+    // Whether to clone subtasks when generating the next repeated instance (DAILY/PERIODICALLY)
+    private Boolean cloneSubTasksOnRepeat;
+
     // Recurrence linkage
     private String recurrenceParentId; // if this is an instance, points to parent template task
     private boolean recurrenceInstance; // true if generated instance

@@ -11,7 +11,7 @@ public class UpdateScheduleRequest {
     private Date endDate;     // required
 
     // Recurrence
-    // NONE, WEEKLY, MONTHLY, PERIODICALLY
+    // NONE, DAILY, WEEKLY, MONTHLY, PERIODICALLY
     private String repeatFrequency; // optional, default NONE
 
     // Weekly options: 0=Sun..6=Sat

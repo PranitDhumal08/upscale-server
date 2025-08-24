@@ -392,8 +392,32 @@ public class TaskService {
                     Task instance = cloneAsInstance(task, nextStart, duration);
                     Task saved = save(instance);
                     addTaskInstanceToSameSections(task.getId(), saved.getId());
-                    // Default: clone subtasks as part of the next instance
-                    cloneSubTasksForInstance(task, saved, nextStart, new Date(nextStart.getTime() + duration));
+                    // Clone subtasks based on persisted preference (default true)
+                    boolean cloneSubs = task.getCloneSubTasksOnRepeat() == null || task.getCloneSubTasksOnRepeat();
+                    if (cloneSubs) {
+                        cloneSubTasksForInstance(task, saved, nextStart, new Date(nextStart.getTime() + duration));
+                    }
+                }
+                // DAILY repeat: create next day's instance once this one completes
+                else if ("DAILY".equalsIgnoreCase(task.getRepeatFrequency())) {
+                    Date completion = new Date();
+                    long duration = 0L;
+                    if (task.getStartDate() != null && task.getEndDate() != null) {
+                        duration = Math.max(0L, task.getEndDate().getTime() - task.getStartDate().getTime());
+                    }
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(completion);
+                    cal.add(Calendar.DATE, 1);
+                    Date nextStart = cal.getTime();
+
+                    Task instance = cloneAsInstance(task, nextStart, duration);
+                    Task saved = save(instance);
+                    addTaskInstanceToSameSections(task.getId(), saved.getId());
+                    // Clone subtasks based on persisted preference (default true)
+                    boolean cloneSubs = task.getCloneSubTasksOnRepeat() == null || task.getCloneSubTasksOnRepeat();
+                    if (cloneSubs) {
+                        cloneSubTasksForInstance(task, saved, nextStart, new Date(nextStart.getTime() + duration));
+                    }
                 }
             } catch (Exception ignored) {}
             log.info("Updated Task: {}", task);
@@ -507,6 +531,21 @@ public class TaskService {
             template.setMonthlyDayOfMonth(null);
             template.setRepeatDaysOfWeek(new ArrayList<>());
             template.setPeriodicDaysAfterCompletion(req.getPeriodicDaysAfterCompletion());
+            // persist clone-subtasks preference (default true)
+            template.setCloneSubTasksOnRepeat(req.getCloneSubTasks() == null || req.getCloneSubTasks());
+            save(template);
+            return true;
+        }
+        if ("DAILY".equalsIgnoreCase(freq)) {
+            // For DAILY, we do not pre-generate. We generate next instance upon completion.
+            template.setMonthlyMode(null);
+            template.setMonthlyNth(null);
+            template.setMonthlyWeekday(null);
+            template.setMonthlyDayOfMonth(null);
+            template.setRepeatDaysOfWeek(new ArrayList<>());
+            template.setPeriodicDaysAfterCompletion(null);
+            // persist clone-subtasks preference (default true)
+            template.setCloneSubTasksOnRepeat(req.getCloneSubTasks() == null || req.getCloneSubTasks());
             save(template);
             return true;
         }
