@@ -444,6 +444,29 @@ public class TaskService {
         return true;
     }
 
+    /**
+     * Disable/turn off recurrence for a task. Sets repeatFrequency to NONE and clears all recurrence-related fields.
+     */
+    public boolean disableSchedule(String taskId) {
+        Task task = getTask(taskId);
+        if (task == null) return false;
+
+        // Turn off recurrence and clear fields
+        task.setRepeatFrequency("NONE");
+        task.setRepeatDaysOfWeek(new ArrayList<>());
+        task.setMonthlyMode(null);
+        task.setMonthlyNth(null);
+        task.setMonthlyWeekday(null);
+        task.setMonthlyDayOfMonth(null);
+        task.setPeriodicDaysAfterCompletion(null);
+        task.setCloneSubTasksOnRepeat(null);
+        task.setRecurrenceInstance(false);
+        task.setRecurrenceParentId(null);
+
+        save(task);
+        return true;
+    }
+
     public boolean updateTaskToProject(String taskId, TaskData taskData) {
 
         if(taskId == null || taskData == null) return false;

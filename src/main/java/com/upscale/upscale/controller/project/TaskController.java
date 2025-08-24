@@ -89,6 +89,78 @@ public class TaskController {
         }
     }
 
+    @PutMapping("/schedule/{task-id}/off")
+    public ResponseEntity<?> disableTaskSchedule(
+            HttpServletRequest request,
+            @PathVariable("task-id") String taskId
+    ) {
+        try {
+            String email = null;
+            try { email = tokenService.getEmailFromToken(request); } catch (Exception ignored) {}
+
+            HashMap<String, Object> response = new HashMap<>();
+            boolean ok = taskService.disableSchedule(taskId);
+            if (ok) {
+                response.put("message", ">>> Task repeat turned OFF <<<");
+                response.put("taskId", taskId);
+                response.put("repeat", "off");
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            response.put("message", "Task not found or failed to update");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/schedule/{task-id}")
+    public ResponseEntity<?> getTaskScheduleStatus(
+            HttpServletRequest request,
+            @PathVariable("task-id") String taskId
+    ) {
+        try {
+            // token read kept for consistency/logging if needed later
+            String email = null;
+            try { email = tokenService.getEmailFromToken(request); } catch (Exception ignored) {}
+
+            HashMap<String, Object> response = new HashMap<>();
+
+            Task task = taskService.getTask(taskId);
+            if (task == null) {
+                response.put("message", "Task not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            String freq = task.getRepeatFrequency();
+            boolean isOn = freq != null && !freq.equalsIgnoreCase("NONE");
+
+            response.put("taskId", task.getId());
+            response.put("repeat", isOn ? "on" : "off");
+            response.put("startDate", task.getStartDate());
+            response.put("endDate", task.getEndDate());
+
+            if (isOn) {
+                HashMap<String, Object> details = new HashMap<>();
+                details.put("repeatFrequency", freq);
+                // weekly
+                details.put("daysOfWeek", task.getRepeatDaysOfWeek());
+                // monthly
+                details.put("monthlyMode", task.getMonthlyMode());
+                details.put("monthlyNth", task.getMonthlyNth());
+                details.put("monthlyWeekday", task.getMonthlyWeekday());
+                details.put("monthlyDayOfMonth", task.getMonthlyDayOfMonth());
+                // periodic/daily options
+                details.put("periodicDaysAfterCompletion", task.getPeriodicDaysAfterCompletion());
+                details.put("cloneSubTasks", task.getCloneSubTasksOnRepeat());
+                response.put("details", details);
+            }
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @PostMapping("/clone/{section-id}")
     public ResponseEntity<?> cloneTaskToSection(
             HttpServletRequest request,
