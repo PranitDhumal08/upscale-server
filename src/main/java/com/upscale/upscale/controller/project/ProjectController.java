@@ -289,6 +289,11 @@ public class ProjectController {
                         taskMap.put("startDate", task.getStartDate());
                         taskMap.put("endDate", task.getEndDate());
                         taskMap.put("completed", task.isCompleted());
+                        // Repeat status for parent task
+                        String freq = task.getRepeatFrequency();
+                        boolean repeatOn = (freq != null && !freq.equalsIgnoreCase("NONE"));
+                        taskMap.put("repeat", repeatOn ? "on" : "off");
+                        taskMap.put("repeatFrequency", freq);
 
                         // Resolve subtasks and compute progressBar
                         List<Map<String, Object>> subTasks = new ArrayList<>();
