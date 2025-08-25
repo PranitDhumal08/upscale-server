@@ -31,14 +31,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(withDefaults()) // ✅ Use the CorsConfigurationSource bean
+                .cors(withDefaults()) // 
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/users/send-otp",
                                 "/api/users/login-user",
                                 "/api/users/verify-otp",
-                                "/api/users/check-user/**"
+                                "/api/users/check-user/**",
+                                "/api/users/forgot/initiate",
+                                "/api/users/forgot/verify-otp"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

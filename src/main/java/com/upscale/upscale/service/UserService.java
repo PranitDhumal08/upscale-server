@@ -82,6 +82,30 @@ public class UserService {
         }
         return false;
     }
+
+    /**
+     * Set OTP for a given email. Returns true if user exists and OTP saved.
+     */
+    public boolean setOtpForEmail(String emailId, String otp) {
+        User user = getUser(emailId);
+        if (user == null) return false;
+        user.setOtp(otp);
+        save(user);
+        return true;
+    }
+
+    /**
+     * Reset password for a given email. Encodes the password and clears OTP.
+     */
+    public boolean resetPassword(String emailId, String newPassword) {
+        User user = getUser(emailId);
+        if (user == null) return false;
+        if (newPassword == null || newPassword.trim().isEmpty()) return false;
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setOtp("");
+        save(user);
+        return true;
+    }
     public boolean isNewUser(String emailId) {
         return userRepo.findByEmailId(emailId).isNewUser();
     }

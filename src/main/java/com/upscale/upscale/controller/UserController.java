@@ -385,6 +385,102 @@ public class UserController {
         }
     }
 
+    // ===================== Forgot Password Flow =====================
+    // 1) Initiate: user enters email; if exists, generate OTP and log to terminal (NO JWT here)
+    @PostMapping("/forgot/initiate")
+    public ResponseEntity<?> forgotInitiate(@RequestBody Map<String, String> payload) {
+        try {
+            String emailId = payload.get("email");
+            if (emailId == null || emailId.trim().isEmpty()) {
+                return new ResponseEntity<>("Email is required", HttpStatus.BAD_REQUEST);
+            }
+
+            if (!userService.checkUserExists(emailId)) {
+                HashMap<String, Object> res = new HashMap<>();
+                res.put("message", "User not found");
+                res.put("email", emailId);
+                return new ResponseEntity<>(res, HttpStatus.NOT_FOUND);
+            }
+
+            String otp = String.valueOf(userService.generateOtp());
+            boolean saved = userService.setOtpForEmail(emailId, otp);
+            if (!saved) {
+                return new ResponseEntity<>("Failed to set OTP", HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+            // Print OTP to terminal/logs as requested
+            log.info("Forgot Password OTP for {}: {}", emailId, otp);
+
+            HashMap<String, Object> res = new HashMap<>();
+            res.put("message", "OTP generated. Now call /api/users/forgot/verify-otp with email and otp.");
+            res.put("email", emailId);
+            return new ResponseEntity<>(res, HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // 2) Verify OTP: PUBLIC. Accepts email + otp, and returns JWT if correct
+    @PostMapping("/forgot/verify-otp")
+    public ResponseEntity<?> forgotVerifyOtp(@RequestBody Map<String, String> payload) {
+        try {
+            String emailId = payload.get("email");
+            String otp = payload.get("otp");
+            if (emailId == null || emailId.trim().isEmpty()) {
+                return new ResponseEntity<>("Email is required", HttpStatus.BAD_REQUEST);
+            }
+            if (otp == null || otp.trim().isEmpty()) {
+                return new ResponseEntity<>("OTP is required", HttpStatus.BAD_REQUEST);
+            }
+
+            if (userService.findByEmailIdAndOtp(emailId, otp)) {
+                HashMap<String, Object> res = new HashMap<>();
+                res.put("message", "OTP verified successfully");
+                res.put("email", emailId);
+                // Issue JWT to be used for reset-password
+                res.put("token", tokenService.generateToken(emailId));
+                return new ResponseEntity<>(res, HttpStatus.OK);
+            }
+
+            return new ResponseEntity<>("Invalid OTP", HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // 3) Reset Password: requires JWT
+    @PostMapping("/forgot/reset-password")
+    public ResponseEntity<?> forgotResetPassword(HttpServletRequest request, @RequestBody Map<String, String> payload) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            if (emailId == null || emailId.isEmpty()) {
+                return new ResponseEntity<>("Invalid or missing token", HttpStatus.UNAUTHORIZED);
+            }
+            String newPassword = payload.get("newPassword");
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                return new ResponseEntity<>("New password is required", HttpStatus.BAD_REQUEST);
+            }
+
+            if (newPassword.length() < 6) {
+                return new ResponseEntity<>("Password must be at least 6 characters", HttpStatus.BAD_REQUEST);
+            }
+
+            boolean ok = userService.resetPassword(emailId, newPassword);
+            if (!ok) {
+                return new ResponseEntity<>("Failed to reset password", HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+
+            HashMap<String, Object> res = new HashMap<>();
+            res.put("message", "Password reset successfully");
+            res.put("email", emailId);
+            // Optionally, issue a fresh token
+            res.put("token", tokenService.generateToken(emailId));
+            return new ResponseEntity<>(res, HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     /**
      * Calculate weekly statistics for tasks completed and collaborators
      * @param emailId User's email ID
