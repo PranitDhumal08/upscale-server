@@ -11,6 +11,8 @@ public class GoalData {
     private String userId;
     private String goalTitle;
     private String goalOwner;
+    private String ownerName;   // Owner full name
+    private String ownerEmail;  // Owner email address
     private String timePeriod;
     private String privacy;
     private List<String> members;

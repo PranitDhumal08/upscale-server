@@ -123,6 +123,16 @@ public class GoalService {
                     }
                     goalData.setMembers(memberEmails);
                     goalData.setGoalOwner(dbGoal.getGoalOwner());
+                    // Populate owner details
+                    try {
+                        User owner = userService.getUserById(dbGoal.getGoalOwner());
+                        if (owner != null) {
+                            goalData.setOwnerName(owner.getFullName());
+                            goalData.setOwnerEmail(owner.getEmailId());
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Unable to populate owner for goal {}: {}", dbGoal.getId(), ex.getMessage());
+                    }
 
                     // Calculate goal completion percentage based on associated project tasks
                     calculateGoalCompletion(goalData, dbGoal.getProjectIds());
@@ -166,6 +176,16 @@ public class GoalService {
                 }
                 goalData.setMembers(memberEmails);
                 goalData.setGoalOwner(goal.getGoalOwner());
+                // Populate owner details
+                try {
+                    User owner = userService.getUserById(goal.getGoalOwner());
+                    if (owner != null) {
+                        goalData.setOwnerName(owner.getFullName());
+                        goalData.setOwnerEmail(owner.getEmailId());
+                    }
+                } catch (Exception ex) {
+                    log.warn("Unable to populate owner for goal {}: {}", goal.getId(), ex.getMessage());
+                }
                 
                 // Calculate goal completion percentage based on associated project tasks
                 calculateGoalCompletion(goalData, goal.getProjectIds());
@@ -423,6 +443,16 @@ public class GoalService {
         goalData.setPrivacy(goal.getPrivacy());
         goalData.setProjectIds(goal.getProjectIds());
         goalData.setGoalOwner(goal.getGoalOwner());
+        // Populate owner details
+        try {
+            User owner = userService.getUserById(goal.getGoalOwner());
+            if (owner != null) {
+                goalData.setOwnerName(owner.getFullName());
+                goalData.setOwnerEmail(owner.getEmailId());
+            }
+        } catch (Exception ex) {
+            log.warn("Unable to populate owner for goal {}: {}", goal.getId(), ex.getMessage());
+        }
         
         // Convert member IDs to email addresses
         List<String> memberEmails = new ArrayList<>();
@@ -466,6 +496,16 @@ public class GoalService {
                     goalData.setPrivacy(goal.getPrivacy());
                     goalData.setProjectIds(goal.getProjectIds());
                     goalData.setGoalOwner(goal.getGoalOwner());
+                    // Populate owner details
+                    try {
+                        User owner = userService.getUserById(goal.getGoalOwner());
+                        if (owner != null) {
+                            goalData.setOwnerName(owner.getFullName());
+                            goalData.setOwnerEmail(owner.getEmailId());
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Unable to populate owner for goal {}: {}", goal.getId(), ex.getMessage());
+                    }
                     
                     // Convert member IDs to email addresses
                     List<String> memberEmails = new ArrayList<>();
