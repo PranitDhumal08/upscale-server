@@ -205,4 +205,33 @@ public class GoalController {
             return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @DeleteMapping("/{goalId}")
+    public ResponseEntity<?> deleteGoal(HttpServletRequest request, @PathVariable("goalId") String goalId) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            boolean deleted = goalService.deleteGoal(emailId, goalId);
+            if (deleted) {
+                response.put("status", "success");
+                response.put("message", "Goal deleted successfully");
+                response.put("goalId", goalId);
+                log.info("Goal {} deleted by {}", goalId, emailId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("status", "error");
+                response.put("message", "Failed to delete goal. It may not exist or you may not have permission.");
+                response.put("goalId", goalId);
+                log.warn("Failed to delete goal {} by {}", goalId, emailId);
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            HashMap<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "Error deleting goal: " + e.getMessage());
+            log.error("Exception while deleting goal {}", goalId, e);
+            return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

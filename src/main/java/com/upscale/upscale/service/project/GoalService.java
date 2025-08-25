@@ -498,4 +498,69 @@ public class GoalService {
         return connectedGoals;
     }
 
+    /**
+     * Delete a goal. Only the goal owner can delete it.
+     * This will also recursively delete all sub-goals and
+     * remove references from any parent goals that include this goal as a sub-goal.
+     */
+    public boolean deleteGoal(String requesterEmail, String goalId) {
+        try {
+            if (goalId == null || goalId.isEmpty()) {
+                log.warn("deleteGoal called with empty goalId");
+                return false;
+            }
+
+            Goal goal = goalRepo.findById(goalId).orElse(null);
+            if (goal == null) {
+                log.warn("Goal not found for id {}", goalId);
+                return false;
+            }
+
+            String requesterId = userId(requesterEmail);
+            if (requesterId == null || !requesterId.equals(goal.getGoalOwner())) {
+                log.warn("Unauthorized delete attempt by {} on goal {}", requesterEmail, goalId);
+                return false;
+            }
+
+            // Perform recursive delete
+            deleteGoalInternal(goalId);
+            log.info("Deleted goal {} by requester {}", goalId, requesterEmail);
+            return true;
+        } catch (Exception e) {
+            log.error("Error deleting goal {}: {}", goalId, e.getMessage());
+            return false;
+        }
+    }
+
+    // Recursively delete goal and its sub-goals and remove parent references
+    private void deleteGoalInternal(String goalId) {
+        Goal goal = goalRepo.findById(goalId).orElse(null);
+        if (goal == null) return;
+
+        // Delete sub-goals first
+        if (goal.getSubGoalIds() != null) {
+            for (String childId : new ArrayList<>(goal.getSubGoalIds())) {
+                deleteGoalInternal(childId);
+            }
+        }
+
+        // Remove this goal from any parents' subGoalIds
+        removeFromParents(goalId);
+
+        // Finally delete this goal
+        goalRepo.deleteById(goalId);
+    }
+
+    private void removeFromParents(String goalId) {
+        List<Goal> all = goalRepo.findAll();
+        for (Goal g : all) {
+            if (g.getSubGoalIds() != null && g.getSubGoalIds().contains(goalId)) {
+                List<String> updated = new ArrayList<>(g.getSubGoalIds());
+                updated.remove(goalId);
+                g.setSubGoalIds(updated);
+                goalRepo.save(g);
+            }
+        }
+    }
+
 }

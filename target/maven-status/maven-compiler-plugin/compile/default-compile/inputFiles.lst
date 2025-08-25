@@ -2,6 +2,7 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/UpscaleApplication.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/CorsConfig.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/MongoConfig.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/PasswordConfig.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/config/SecurityConfig.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/AttachmentController.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/controller/UserController.java
@@ -32,6 +33,7 @@
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/ProjectData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/ProjectOverview.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/project/SectionData.java
+/home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/CloneTaskRequest.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/SubTaskData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/TaskData.java
 /home/jarvis/Documents/Github/upscale-server/src/main/java/com/upscale/upscale/dto/task/UpdateScheduleRequest.java
