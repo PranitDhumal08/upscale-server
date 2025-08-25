@@ -577,7 +577,7 @@ public class ProjectService {
             project.setProjectName(projectOverview.getProjectName());
             log.info("Project name updated to: {}", projectOverview.getProjectName());
         }
-        if(projectOverview.getProjectDescription() != null && !projectOverview.getProjectDescription().isEmpty()) {
+        if(projectOverview.getProjectDescription() != null) {
             project.setProjectDescription(projectOverview.getProjectDescription());
         }
         if(projectOverview.getStartDate() != null) project.setStartDate(projectOverview.getStartDate());
