@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -45,12 +44,8 @@ public class UserService {
     @Lazy
     private com.upscale.upscale.service.project.ProjectService projectService;
 
-    private PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
-
-    public UserService() {
-        // Set default password encoder to bcrypt
-        System.setProperty("spring.security.password.encoder", "bcrypt");
-    }
+    @Autowired
+    private PasswordEncoder passwordEncoder; // Use shared bean from SecurityConfig
 
     public boolean checkUserExists(String emailId) {
         return userRepo.findByEmailId(emailId) != null;
@@ -62,11 +57,12 @@ public class UserService {
     }
 
     public boolean login(LoginUser loginUser) {
+        if (loginUser == null || loginUser.getEmail() == null || loginUser.getPassword() == null) return false;
         User user = userRepo.findByEmailId(loginUser.getEmail());
-        if(user != null) {
-            if(passwordEncoder.matches(loginUser.getPassword(),user.getPassword())) return true;
-        }
-        return false;
+        if (user == null) return false;
+        String stored = user.getPassword();
+        if (stored == null || stored.isEmpty()) return false;
+        return passwordEncoder.matches(loginUser.getPassword(), stored);
     }
 
     public void save(User user) {

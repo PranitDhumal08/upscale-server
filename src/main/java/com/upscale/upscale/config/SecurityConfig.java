@@ -11,7 +11,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -27,6 +26,9 @@ public class SecurityConfig {
 
     @Autowired
     private com.upscale.upscale.service.UserService userService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -60,26 +62,22 @@ public class SecurityConfig {
                 // Return a dummy user with a non-matching password if not found
                 // This prevents leaking information about existing users
                 return User.withUsername(email)
-                        .password(passwordEncoder().encode("dummy"))
+                        .password(passwordEncoder.encode("dummy"))
                         .roles("USER")
                         .build();
             }
             // For JWT, password is not directly used for authentication in this layer
             // You might want to store hashed passwords in your User entity
             return User.withUsername(user.getEmailId())
-                    .password(user.getPassword() != null ? user.getPassword() : passwordEncoder().encode("dummy")) // Use stored password or a dummy one
+                    .password(user.getPassword() != null ? user.getPassword() : passwordEncoder.encode("dummy")) // Use stored password or a dummy one
                     .roles("USER") // Assign appropriate roles from your user entity if available
                     .build();
         };
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
-} 
+}
+ 
