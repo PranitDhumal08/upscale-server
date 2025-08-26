@@ -58,6 +58,94 @@ public class PortfolioController {
         }
     }
 
+    @PostMapping("/rename/{portfolio-id}")
+    public ResponseEntity<?> renamePortfolio(
+            HttpServletRequest request,
+            @PathVariable("portfolio-id") String portfolioId,
+            @RequestBody HashMap<String, String> body
+    ) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            if (body == null || !body.containsKey("portfolioName") || body.get("portfolioName").trim().isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "portfolioName is required");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            String newName = body.get("portfolioName").trim();
+
+            Optional<Portfolio> opt = portfolioService.getPortfolio(portfolioId);
+            if (opt.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Portfolio not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            Portfolio portfolio = opt.get();
+            String requesterId = userService.getUser(email).getId();
+            if (!requesterId.equals(portfolio.getOwnerId())) {
+                response.put("status", "error");
+                response.put("message", "You do not have permission to rename this portfolio");
+                return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+            }
+
+            portfolio.setPortfolioName(newName);
+            portfolioService.save(portfolio);
+
+            response.put("status", "success");
+            response.put("message", "Portfolio renamed successfully");
+            response.put("portfolioId", portfolio.getId());
+            response.put("portfolioName", portfolio.getPortfolioName());
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @DeleteMapping("/delete/{portfolio-id}")
+    public ResponseEntity<?> deletePortfolio(
+            HttpServletRequest request,
+            @PathVariable("portfolio-id") String portfolioId
+    ) {
+        try {
+            String email = tokenService.getEmailFromToken(request);
+            HashMap<String, Object> response = new HashMap<>();
+
+            Optional<Portfolio> opt = portfolioService.getPortfolio(portfolioId);
+            if (opt.isEmpty()) {
+                response.put("status", "error");
+                response.put("message", "Portfolio not found");
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            Portfolio portfolio = opt.get();
+            String requesterId = userService.getUser(email).getId();
+            if (!requesterId.equals(portfolio.getOwnerId())) {
+                response.put("status", "error");
+                response.put("message", "You do not have permission to delete this portfolio");
+                return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+            }
+
+            boolean deleted = portfolioService.deletePortfolio(portfolioId);
+            if (deleted) {
+                response.put("status", "success");
+                response.put("message", "Portfolio deleted successfully");
+                response.put("portfolioId", portfolioId);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                response.put("status", "error");
+                response.put("message", "Failed to delete portfolio");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/my-portfolio")
     public ResponseEntity<?> getMyPortfolio(HttpServletRequest request) {
         try {
