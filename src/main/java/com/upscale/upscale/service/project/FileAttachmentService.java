@@ -8,6 +8,7 @@ import com.upscale.upscale.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -25,6 +26,10 @@ public class FileAttachmentService {
 
     @Autowired
     private ProjectService projectService;
+
+    @Autowired
+    @Lazy
+    private InboxService inboxService;
 
     private static final Set<String> ALLOWED_EXTENSIONS = new HashSet<>(Arrays.asList(
             "pdf", "xls", "xlsx", "ppt", "pptx", "jpg", "jpeg", "png", "gif", "bmp", "webp"
@@ -95,6 +100,18 @@ public class FileAttachmentService {
         FileAttachment saved = fileAttachmentRepo.save(att);
         log.info("Stored attachment {} ({} bytes) for project {} from {} to {} receivers",
                 saved.getId(), saved.getFileSize(), projectId, senderEmail, receiverIds.size());
+
+        try {
+            String fileLabel = saved.getDisplayName() != null && !saved.getDisplayName().isBlank()
+                    ? saved.getDisplayName()
+                    : (saved.getOriginalFileName() != null ? saved.getOriginalFileName() : saved.getFileName());
+            String projectName = project.getProjectName() != null ? project.getProjectName() : projectId;
+            String content = String.format("You uploaded '%s' to project '%s' and shared with %d recipient(s).",
+                    fileLabel, projectName, receiverIds.size());
+            inboxService.sendSelf("FILE_UPLOAD_SELF", content, senderEmail, saved.getId());
+        } catch (Exception e) {
+            log.warn("Failed to send self inbox for file upload: {}", e.getMessage());
+        }
 
         return saved;
     }

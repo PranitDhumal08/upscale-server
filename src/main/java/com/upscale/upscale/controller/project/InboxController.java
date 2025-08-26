@@ -74,5 +74,53 @@ public class InboxController {
         }
     }
 
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<?> archiveInbox(@PathVariable("id") String id, HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            boolean ok = inboxService.archive(id, emailId);
+            if (ok) {
+                HashMap<String, Object> response = new HashMap<>();
+                response.put("message", ">>> Inbox archived <<<");
+                response.put("id", id);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            return new ResponseEntity<>(">>> Unable to archive inbox <<<", HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(">>> Failed to archive inbox <<<", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PatchMapping("/{id}/unarchive")
+    public ResponseEntity<?> unarchiveInbox(@PathVariable("id") String id, HttpServletRequest request) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            boolean ok = inboxService.unarchive(id, emailId);
+            if (ok) {
+                HashMap<String, Object> response = new HashMap<>();
+                response.put("message", ">>> Inbox unarchived <<<");
+                response.put("id", id);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            }
+            return new ResponseEntity<>(">>> Unable to unarchive inbox <<<", HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>(">>> Failed to unarchive inbox <<<", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/get-archived")
+    public ResponseEntity<?> getArchivedInbox(HttpServletRequest request,
+                                              @RequestParam(value = "type", required = false) String type) {
+        try {
+            String emailId = tokenService.getEmailFromToken(request);
+            List<InboxData> data = inboxService.getArchivedInbox(emailId, type);
+            HashMap<String,Object> response = new HashMap<>();
+            response.put("message", ">>> Archived inbox fetched successfully <<<");
+            response.put("Data", data);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(">>> Failed to get archived inbox <<<", HttpStatus.BAD_REQUEST);
+        }
+    }
 
 }

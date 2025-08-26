@@ -14,4 +14,5 @@ public class InboxData {
     private String entityId;
     private Date createdAt;
     private boolean read;
+    private boolean archived;
 }

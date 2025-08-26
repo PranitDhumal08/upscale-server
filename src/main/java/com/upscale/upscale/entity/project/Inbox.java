@@ -10,7 +10,7 @@ import java.util.Date;
 public class Inbox {
 
     @Id
-    private String Id;
+    private String id;
     private String senderId;
     private String receiverId;
     private String content;
@@ -18,4 +18,5 @@ public class Inbox {
     private String entityId;  // related entity id (projectId, taskId, goalId) if available
     private Date createdAt;   // when the message was created
     private boolean read;     // has the receiver read this message
+    private boolean archived; // has the receiver archived this message
 }

@@ -203,21 +203,28 @@ public class PortfolioService {
                 Date endDate = project.getEndDate();
 
                 String status;
-                if (startDate != null && endDate != null) {
+                // Completed takes precedence when tasks exist
+                if (totalTasks > 0 && completedTasks == totalTasks) {
+                    status = "Completed";
+                } else if (startDate != null && endDate != null) {
                     LocalDate startLocalDate = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                     LocalDate endLocalDate = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                     LocalDate currentDate = LocalDate.now();
 
-                    if ((currentDate.isEqual(startLocalDate) || currentDate.isAfter(startLocalDate)) &&
-                            (currentDate.isEqual(endLocalDate) || currentDate.isBefore(endLocalDate))) {
-                        status = "On Track";
-                    } else if (currentDate.isBefore(startLocalDate)) {
+                    if (currentDate.isBefore(startLocalDate)) {
                         status = "Not Started";
-                    } else {
+                    } else if (currentDate.isAfter(endLocalDate)) {
                         status = "Overdue";
+                    } else {
+                        status = "On Track"; // In between dates
                     }
                 } else {
-                    status = "No Dates Set";
+                    // No dates provided
+                    if (completedTasks > 0) {
+                        status = "In Progress";
+                    } else {
+                        status = "No Dates Set";
+                    }
                 }
 
                 projectProgress.put("status", status);
@@ -240,7 +247,19 @@ public class PortfolioService {
                 }
                 log.info("Project owner {} has logged in", projectOwner);
                 projectProgress.put("projectOwner",projectOwner);
-                projectProgress.put("status", "No Recent Update");
+                // Derive status for inner portfolio if dates set
+                String pStatus = "No Recent Update";
+                Date pStart = portfolio1.getStartDate();
+                Date pEnd = portfolio1.getEndDate();
+                if (pStart != null && pEnd != null) {
+                    LocalDate s = pStart.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate e = pEnd.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate now = LocalDate.now();
+                    if (now.isBefore(s)) pStatus = "Not Started";
+                    else if (now.isAfter(e)) pStatus = "Overdue";
+                    else pStatus = "On Track";
+                }
+                projectProgress.put("status", pStatus);
             } else {
                 continue;
             }

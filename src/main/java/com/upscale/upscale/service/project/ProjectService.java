@@ -190,6 +190,7 @@ public class ProjectService {
         teammatesMap.put(creator.getFullName(), creatorInfo);
 
         // Process teammates and send invitations
+        int invitedCount = 0;
         if (projectCreate.getTeammates() != null) {
             for (String teammateEmail : projectCreate.getTeammates()) {
                 // Check if teammate exists in database
@@ -205,11 +206,19 @@ public class ProjectService {
                     
                     // Send project invitation via inbox
                     inboxService.sendProjectInvite(emailId, teammateEmail, newProject, teammateUser);
+                    invitedCount++;
                     log.info("Invitation sent to: {}", teammateEmail);
                 } else {
                     log.warn("Teammate not found in database: {}", teammateEmail);
                 }
             }
+        }
+        // Self-confirmation inbox for creator
+        try {
+            String content = String.format("You added %d teammate(s) to project '%s'.", invitedCount, newProject.getProjectName());
+            inboxService.sendSelf("PROJECT_SELF_ADD", content, emailId, newProject.getId());
+        } catch (Exception e) {
+            log.warn("Failed to send project self inbox: {}", e.getMessage());
         }
         
 
