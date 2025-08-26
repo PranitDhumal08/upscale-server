@@ -168,7 +168,24 @@ public class ProjectService {
         String creatorId = userService.getUser(emailId).getId();
 
         // Now pass the project ID, teammates, and creator ID to getTasks
-        List<Section> sections = getSections(newProject.getId(), projectCreate.getTeammates(), creatorId, projectCreate.getTasks());
+        // Resolve teammate emails (from request) to user IDs for task assignments
+        List<String> teammateIds = new ArrayList<>();
+        if (projectCreate.getTeammates() != null) {
+            for (String teammateEmail : projectCreate.getTeammates()) {
+                try {
+                    User teammateUser = userService.getUser(teammateEmail);
+                    if (teammateUser != null && teammateUser.getId() != null) {
+                        teammateIds.add(teammateUser.getId());
+                    } else {
+                        log.warn("Teammate not found while resolving to ID: {}", teammateEmail);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Error resolving teammate email to ID: {} -> {}", teammateEmail, ex.getMessage());
+                }
+            }
+        }
+        // Optionally include creator in default assignment if desired; keeping only explicit teammates here
+        List<Section> sections = getSections(newProject.getId(), teammateIds, creatorId, projectCreate.getTasks());
         newProject.setSection(sections);
 
         newProject.setLayouts(projectCreate.getLayouts());
