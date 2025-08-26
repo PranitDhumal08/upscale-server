@@ -21,9 +21,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Random;
 import java.time.temporal.ChronoUnit;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -159,6 +163,202 @@ public class UserService {
             return user.getTeammates();
         }
         return new ArrayList<>();
+    }
+
+    /**
+     * Returns a comprehensive list of team mates for a user by aggregating:
+     * 1) User's saved teammates list
+     * 2) Members from projects the user owns
+     * 3) Members (owner + other teammates) from projects where the user is a teammate
+     * Output is a unique list of teammate email IDs (excluding the user's own email).
+     */
+    public List<String> getAllTeamMates(String emailId) {
+        Set<String> mates = new HashSet<>();
+
+        try {
+            User user = getUser(emailId);
+            if (user == null) return new ArrayList<>();
+
+            // 1) User's saved teammates (assumed emails)
+            if (user.getTeammates() != null) {
+                for (String t : user.getTeammates()) {
+                    if (t != null && !t.equalsIgnoreCase(emailId)) mates.add(t);
+                }
+            }
+
+            // Helper to safely extract email from teammate info array supporting legacy formats
+            java.util.function.Function<String[], String> extractEmail = (arr) -> {
+                try {
+                    // New format: [0]=email, [1]=role, [2]=position, [3]=name
+                    if (arr.length >= 1 && arr[0] != null && arr[0].contains("@")) return arr[0];
+                    // Old format: [0]=role, [1]=position, [2]=email, [3]=name
+                    if (arr.length >= 3 && arr[2] != null && arr[2].contains("@")) return arr[2];
+                } catch (Exception ignored) {}
+                return null;
+            };
+
+            // Build relevant project IDs (owned + teammate projects)
+            Set<String> relevantProjectIds = new HashSet<>();
+
+            // Owned projects from user profile
+            if (user.getProjects() != null) {
+                relevantProjectIds.addAll(user.getProjects());
+            }
+
+            // Projects where user is a teammate (via robust scan in ProjectService)
+            try {
+                HashMap<String, String> teammateProjects = projectService.getProjectsAsTeammate(emailId);
+                if (teammateProjects != null) relevantProjectIds.addAll(teammateProjects.keySet());
+            } catch (Exception e) {
+                log.warn("Failed to fetch teammate projects for {}: {}", emailId, e.getMessage());
+            }
+
+            // For each relevant project, gather owner + teammates
+            for (String pid : relevantProjectIds) {
+                try {
+                    com.upscale.upscale.entity.project.Project p = projectService.getProject(pid);
+                    if (p == null) continue;
+
+                    // Owner
+                    String ownerEmail = p.getUserEmailid();
+                    if (ownerEmail != null && !ownerEmail.equalsIgnoreCase(emailId)) mates.add(ownerEmail);
+
+                    // Teammates map
+                    HashMap<String, String[]> tm = p.getTeammates();
+                    if (tm != null) {
+                        for (String[] info : tm.values()) {
+                            String teammateEmail = extractEmail.apply(info);
+                            if (teammateEmail != null && !teammateEmail.equalsIgnoreCase(emailId)) {
+                                mates.add(teammateEmail);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+
+        } catch (Exception e) {
+            log.error("Error aggregating teammates for {}: {}", emailId, e.getMessage());
+        }
+
+        return new ArrayList<>(mates);
+    }
+
+    /**
+     * Returns detailed teammates across all relevant projects (owned + teammate projects)
+     * and user's saved teammates, deduplicated by email.
+     * Each item contains: name, email, role, position.
+     */
+    public List<Map<String, String>> getAllTeamMatesDetailed(String emailId) {
+        LinkedHashMap<String, Map<String, String>> byEmail = new LinkedHashMap<>();
+
+        try {
+            User me = getUser(emailId);
+            if (me == null) return new ArrayList<>();
+
+            // Helper to build details map
+            java.util.function.BiFunction<String[], String, Map<String, String>> buildFromArray = (arr, fallbackName) -> {
+                Map<String, String> m = new HashMap<>();
+                String email = null, role = null, position = null, name = null;
+                try {
+                    // Prefer new format [0]=email, [1]=role, [2]=position, [3]=name
+                    if (arr != null) {
+                        if (arr.length >= 1 && arr[0] != null && arr[0].contains("@")) {
+                            email = arr[0];
+                            role = arr.length >= 2 ? arr[1] : null;
+                            position = arr.length >= 3 ? arr[2] : null;
+                            name = arr.length >= 4 ? arr[3] : null;
+                        } else if (arr.length >= 3 && arr[2] != null && arr[2].contains("@")) {
+                            // Legacy format [0]=role, [1]=position, [2]=email, [3]=name
+                            email = arr[2];
+                            role = arr.length >= 1 ? arr[0] : null;
+                            position = arr.length >= 2 ? arr[1] : null;
+                            name = arr.length >= 4 ? arr[3] : null;
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                if (email != null) {
+                    // fill missing from User record if possible
+                    User u = getUser(email);
+                    if (u != null) {
+                        if (name == null || name.isBlank()) name = u.getFullName();
+                        if (role == null || role.isBlank()) role = u.getRole();
+                    }
+                }
+                if (name == null || name.isBlank()) name = fallbackName != null ? fallbackName : "";
+                if (position == null || position.isBlank()) position = "employee";
+
+                m.put("name", name != null ? name : "");
+                m.put("email", email != null ? email : "");
+                m.put("role", role != null ? role : "");
+                m.put("position", position);
+                return m;
+            };
+
+            // 1) Build set of relevant project IDs (owned + where I'm teammate)
+            Set<String> relevantProjectIds = new HashSet<>();
+            if (me.getProjects() != null) relevantProjectIds.addAll(me.getProjects());
+            try {
+                HashMap<String, String> teammateProjects = projectService.getProjectsAsTeammate(emailId);
+                if (teammateProjects != null) relevantProjectIds.addAll(teammateProjects.keySet());
+            } catch (Exception e) {
+                log.warn("getAllTeamMatesDetailed: failed to get teammate projects for {}: {}", emailId, e.getMessage());
+            }
+
+            // 2) Aggregate from projects
+            for (String pid : relevantProjectIds) {
+                try {
+                    com.upscale.upscale.entity.project.Project p = projectService.getProject(pid);
+                    if (p == null) continue;
+
+                    // Owner
+                    String ownerEmail = p.getUserEmailid();
+                    if (ownerEmail != null && !ownerEmail.equalsIgnoreCase(emailId)) {
+                        User owner = getUser(ownerEmail);
+                        Map<String, String> details = new HashMap<>();
+                        details.put("email", ownerEmail);
+                        details.put("name", owner != null ? owner.getFullName() : "");
+                        details.put("role", owner != null ? owner.getRole() : "Project Manager");
+                        details.put("position", "owner");
+                        byEmail.putIfAbsent(ownerEmail.toLowerCase(), details);
+                    }
+
+                    // Teammates
+                    HashMap<String, String[]> tm = p.getTeammates();
+                    if (tm != null) {
+                        for (Map.Entry<String, String[]> e : tm.entrySet()) {
+                            String[] info = e.getValue();
+                            Map<String, String> details = buildFromArray.apply(info, e.getKey());
+                            String email = details.get("email");
+                            if (email == null || email.isBlank()) continue;
+                            if (email.equalsIgnoreCase(emailId)) continue; // skip self
+                            byEmail.putIfAbsent(email.toLowerCase(), details);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // 3) Also include user's saved teammates list
+            if (me.getTeammates() != null) {
+                for (String mateEmail : me.getTeammates()) {
+                    if (mateEmail == null || mateEmail.isBlank()) continue;
+                    if (mateEmail.equalsIgnoreCase(emailId)) continue;
+                    if (byEmail.containsKey(mateEmail.toLowerCase())) continue; // already present
+                    User u = getUser(mateEmail);
+                    Map<String, String> details = new HashMap<>();
+                    details.put("email", mateEmail);
+                    details.put("name", u != null ? u.getFullName() : "");
+                    details.put("role", u != null ? u.getRole() : "");
+                    details.put("position", "employee");
+                    byEmail.put(mateEmail.toLowerCase(), details);
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("Error aggregating detailed teammates for {}: {}", emailId, e.getMessage());
+        }
+
+        return new ArrayList<>(byEmail.values());
     }
 
     public HashMap<String,List<String>> getProjects(String emailId) {

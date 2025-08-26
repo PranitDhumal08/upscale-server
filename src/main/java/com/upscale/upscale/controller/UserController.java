@@ -281,7 +281,7 @@ public class UserController {
             // Projects where user is a teammate
             response.put("Teammate Projects", projectService.getProjectsAsTeammate(emailId));
 
-            response.put("Team Mates", userService.getTeamMates(emailId));
+            response.put("Team Mates", userService.getAllTeamMatesDetailed(emailId));
 
             // ✅ NEW: Add weekly and monthly statistics
             response.put("My Week", calculateWeeklyStats(emailId, user.getId()));
