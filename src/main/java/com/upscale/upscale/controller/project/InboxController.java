@@ -74,7 +74,7 @@ public class InboxController {
         }
     }
 
-    @PatchMapping("/{id}/archive")
+    @PostMapping("/{id}/archive")
     public ResponseEntity<?> archiveInbox(@PathVariable("id") String id, HttpServletRequest request) {
         try {
             String emailId = tokenService.getEmailFromToken(request);
@@ -91,7 +91,7 @@ public class InboxController {
         }
     }
 
-    @PatchMapping("/{id}/unarchive")
+    @PostMapping("/{id}/unarchive")
     public ResponseEntity<?> unarchiveInbox(@PathVariable("id") String id, HttpServletRequest request) {
         try {
             String emailId = tokenService.getEmailFromToken(request);
