@@ -36,6 +36,111 @@ public class GoalService {
         goalRepo.save(goal);
     }
 
+    /**
+     * Decide and set goal completion on GoalData.
+     * Rule: If the goal has linked projects, use project-based completion.
+     * Otherwise, if it has sub-goals, compute as the average of sub-goals' completion.
+     */
+    private void setGoalCompletion(Goal goal, GoalData goalData) {
+        try {
+            if (goal.getProjectIds() != null && !goal.getProjectIds().isEmpty()) {
+                // Project-based completion
+                calculateGoalCompletion(goalData, goal.getProjectIds());
+                return;
+            }
+
+            if (goal.getSubGoalIds() != null && !goal.getSubGoalIds().isEmpty()) {
+                // Aggregate from sub-goals
+                int childCount = 0;
+                int completedChildren = 0;
+                double sumPct = 0.0;
+
+                for (String childId : goal.getSubGoalIds()) {
+                    Goal child = goalRepo.findById(childId).orElse(null);
+                    if (child == null) continue;
+                    double childPct = getGoalCompletionPercentageRecursive(child);
+                    sumPct += childPct;
+                    if (childPct >= 100.0) completedChildren++;
+                    childCount++;
+                }
+
+                if (childCount > 0) {
+                    double avg = Math.round((sumPct / childCount) * 100.0) / 100.0;
+                    goalData.setCompletionPercentage(avg);
+                    goalData.setTotalTasks(childCount); // interpreting as number of sub-goals
+                    goalData.setCompletedTasks(completedChildren); // sub-goals at 100%
+                } else {
+                    goalData.setCompletionPercentage(0.0);
+                    goalData.setTotalTasks(0);
+                    goalData.setCompletedTasks(0);
+                }
+                return;
+            }
+
+            // No projects and no sub-goals
+            goalData.setCompletionPercentage(0.0);
+            goalData.setTotalTasks(0);
+            goalData.setCompletedTasks(0);
+        } catch (Exception e) {
+            log.error("Error setting goal completion for goal '{}': {}", goal.getGoalTitle(), e.getMessage());
+            goalData.setCompletionPercentage(0.0);
+            goalData.setTotalTasks(0);
+            goalData.setCompletedTasks(0);
+        }
+    }
+
+    // Recursively compute a goal's completion percentage using the same rule as setGoalCompletion
+    private double getGoalCompletionPercentageRecursive(Goal goal) {
+        try {
+            if (goal.getProjectIds() != null && !goal.getProjectIds().isEmpty()) {
+                return computeProjectCompletionPercent(goal.getProjectIds());
+            }
+
+            if (goal.getSubGoalIds() != null && !goal.getSubGoalIds().isEmpty()) {
+                double sum = 0.0;
+                int count = 0;
+                for (String childId : goal.getSubGoalIds()) {
+                    Goal child = goalRepo.findById(childId).orElse(null);
+                    if (child == null) continue;
+                    sum += getGoalCompletionPercentageRecursive(child);
+                    count++;
+                }
+                if (count == 0) return 0.0;
+                return Math.round((sum / count) * 100.0) / 100.0;
+            }
+        } catch (Exception e) {
+            log.warn("Error computing recursive completion for goal {}: {}", goal.getId(), e.getMessage());
+        }
+        return 0.0;
+    }
+
+    // Compute only the percentage for a list of project IDs (helper for recursion)
+    private double computeProjectCompletionPercent(List<String> projectIds) {
+        int totalTasks = 0;
+        int completedTasks = 0;
+        try {
+            if (projectIds == null || projectIds.isEmpty()) return 0.0;
+            for (String projectId : projectIds) {
+                try {
+                    List<com.upscale.upscale.entity.project.Task> projectTasks = taskService.getTasksByProjectId(projectId);
+                    if (projectTasks != null) {
+                        totalTasks += projectTasks.size();
+                        for (com.upscale.upscale.entity.project.Task task : projectTasks) {
+                            if (task.isCompleted()) completedTasks++;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Error processing project {} in computeProjectCompletionPercent: {}", projectId, e.getMessage());
+                }
+            }
+            if (totalTasks == 0) return 0.0;
+            return Math.round(((double) completedTasks / totalTasks) * 100.0 * 100.0) / 100.0;
+        } catch (Exception e) {
+            log.warn("Error computing project completion percent: {}", e.getMessage());
+            return 0.0;
+        }
+    }
+
     public Goal saveGoal(Goal goal){
         return goalRepo.save(goal);
     }
@@ -134,8 +239,8 @@ public class GoalService {
                         log.warn("Unable to populate owner for goal {}: {}", dbGoal.getId(), ex.getMessage());
                     }
 
-                    // Calculate goal completion percentage based on associated project tasks
-                    calculateGoalCompletion(goalData, dbGoal.getProjectIds());
+                    // Calculate goal completion percentage (projects take precedence, else aggregate from sub-goals)
+                    setGoalCompletion(dbGoal, goalData);
 
                     goalDataList.add(goalData);
                     log.info("Found team goal: {} with {} members and {}% completion", 
@@ -187,8 +292,8 @@ public class GoalService {
                     log.warn("Unable to populate owner for goal {}: {}", goal.getId(), ex.getMessage());
                 }
                 
-                // Calculate goal completion percentage based on associated project tasks
-                calculateGoalCompletion(goalData, goal.getProjectIds());
+                // Calculate goal completion percentage (projects take precedence, else aggregate from sub-goals)
+                setGoalCompletion(goal, goalData);
                 
                 goalDataList.add(goalData);
                 log.info("Found personal goal: {} for user {} with {}% completion", 
@@ -466,8 +571,8 @@ public class GoalService {
         }
         goalData.setMembers(memberEmails);
         
-        // Calculate completion percentage
-        calculateGoalCompletion(goalData, goal.getProjectIds());
+        // Calculate completion percentage (projects take precedence, else aggregate from sub-goals)
+        setGoalCompletion(goal, goalData);
         
         return goalData;
     }
@@ -519,8 +624,8 @@ public class GoalService {
                     }
                     goalData.setMembers(memberEmails);
                     
-                    // Calculate completion percentage for this goal
-                    calculateGoalCompletion(goalData, goal.getProjectIds());
+                    // Calculate completion percentage for this goal (projects take precedence, else aggregate from sub-goals)
+                    setGoalCompletion(goal, goalData);
                     
                     connectedGoals.add(goalData);
                     
