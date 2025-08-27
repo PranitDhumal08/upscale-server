@@ -361,6 +361,14 @@ public class TaskService {
                 projectService.save(project);
 
             }
+            // Delete all subtasks linked to this task
+            try {
+                if (task.getSubTaskIds() != null) {
+                    for (String subTaskId : task.getSubTaskIds()) {
+                        try { subTaskRepo.deleteById(subTaskId); } catch (Exception ignored) {}
+                    }
+                }
+            } catch (Exception ignored) {}
             taskRepo.delete(task);
             log.info("Deleted Task: {}", task);
             return true;

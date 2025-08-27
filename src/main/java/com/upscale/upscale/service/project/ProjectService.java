@@ -465,6 +465,29 @@ public class ProjectService {
             log.error("Project not found with id: {}", projectId);
             return false;
         }
+
+        // 1) Delete all tasks and their subtasks associated to this project
+        try {
+            // a) From sections' taskIds
+            if (project.getSection() != null) {
+                for (Section section : project.getSection()) {
+                    if (section.getTaskIds() != null) {
+                        for (String taskId : new ArrayList<>(section.getTaskIds())) {
+                            try { taskService.deleteTask(taskId); } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+            // b) Any remaining tasks linked via projectIds (safety net)
+            List<Task> linkedTasks = taskService.getTasksByProjectId(projectId);
+            for (Task t : linkedTasks) {
+                try { taskService.deleteTask(t.getId()); } catch (Exception ignored) {}
+            }
+        } catch (Exception e) {
+            log.warn("Failed during cascading task deletion for project {}: {}", projectId, e.getMessage());
+        }
+
+        // 2) Delete project itself
         projectRepo.delete(project);
         log.info("Deleted project with id: {}", projectId);
 
